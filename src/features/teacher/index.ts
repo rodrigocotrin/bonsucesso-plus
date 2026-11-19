@@ -1,2 +1,5 @@
-// Módulo da Visão do Professor Voluntário (reservado para a próxima etapa)
-export {};
+export * from './TeacherDashboardPage';
+export * from './TeacherLessonsPage';
+export * from './TeacherAttendancePage';
+export * from './TeacherAssessmentsPage';
+export * from './TeacherClassPerformancePage';

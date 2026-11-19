@@ -167,6 +167,7 @@ export interface Lesson {
   endTime: string; // HH:mm
   topic: string;
   notes?: string;
+  externalUrl?: string; // Link opcional para Google Classroom, YouTube ou material complementar
   status: 'agendada' | 'ministrada' | 'cancelada';
 }
 

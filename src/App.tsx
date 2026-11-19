@@ -18,6 +18,13 @@ import {
   StudentMaterialsPage,
   StudentPerformancePage,
 } from './features/student';
+import {
+  TeacherAssessmentsPage,
+  TeacherAttendancePage,
+  TeacherClassPerformancePage,
+  TeacherDashboardPage,
+  TeacherLessonsPage,
+} from './features/teacher';
 import { AppShellLayout } from './layouts/AppShellLayout';
 import { BaseLayout } from './layouts/BaseLayout';
 import { ROLE_NAVIGATION_MENUS } from './layouts/navigationConfig';
@@ -39,7 +46,7 @@ const RootRedirect: React.FC = () => {
   return <Navigate to={getDefaultRouteForRole(currentAccount.role)} replace />;
 };
 
-const REMAINING_PLACEHOLDER_ROLES: UserRole[] = ['teacher', 'coordinator'];
+const REMAINING_PLACEHOLDER_ROLES: UserRole[] = ['coordinator'];
 
 export const App: React.FC = () => {
   return (
@@ -201,7 +208,81 @@ export const App: React.FC = () => {
                 />
 
                 {/* =========================================================
-                    ROTAS DOS DEMAIS PERFIS (Intactas como Placeholders, exceto Meus Dados e Configurações)
+                    ROTAS DO PERFIL PROFESSOR VOLUNTÁRIO (Etapa 5 — Implementação Completa)
+                   ========================================================= */}
+                <Route
+                  path="/professor"
+                  element={
+                    <PrivateRoute allowedRoles={['teacher']}>
+                      <AppShellLayout>
+                        <TeacherDashboardPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/professor/aulas"
+                  element={
+                    <PrivateRoute allowedRoles={['teacher']}>
+                      <AppShellLayout>
+                        <TeacherLessonsPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/professor/chamada"
+                  element={
+                    <PrivateRoute allowedRoles={['teacher']}>
+                      <AppShellLayout>
+                        <TeacherAttendancePage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/professor/avaliacoes"
+                  element={
+                    <PrivateRoute allowedRoles={['teacher']}>
+                      <AppShellLayout>
+                        <TeacherAssessmentsPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/professor/desempenho"
+                  element={
+                    <PrivateRoute allowedRoles={['teacher']}>
+                      <AppShellLayout>
+                        <TeacherClassPerformancePage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/professor/perfil"
+                  element={
+                    <PrivateRoute allowedRoles={['teacher']}>
+                      <AppShellLayout>
+                        <MyDataPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/professor/configuracoes"
+                  element={
+                    <PrivateRoute allowedRoles={['teacher']}>
+                      <AppShellLayout>
+                        <SettingsPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+
+                {/* =========================================================
+                    ROTAS DO PERFIL COORDENAÇÃO (Placeholders até a próxima etapa)
                    ========================================================= */}
                 {REMAINING_PLACEHOLDER_ROLES.flatMap((role) =>
                   ROLE_NAVIGATION_MENUS[role].map((item) => {

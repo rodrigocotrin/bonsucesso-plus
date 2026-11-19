@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
+  Assessment,
   Attendance,
   CalendarEvent,
   Enrollment,
@@ -21,8 +22,12 @@ interface MockDatabaseContextValue {
   getStudentAttendancePercentage: (studentPersonId: string) => number;
   updatePerson: (person: Person) => void;
   recordAttendance: (attendance: Attendance) => void;
+  recordAttendanceBatch: (attendances: Attendance[], markLessonCompletedId?: string) => void;
   addGrade: (grade: Grade) => void;
+  saveGradeBatch: (grades: Grade[]) => void;
+  addAssessment: (assessment: Assessment) => void;
   addLesson: (lesson: Lesson) => void;
+  updateLesson: (lesson: Lesson) => void;
   addCalendarEvent: (event: CalendarEvent) => void;
   updateEnrollment: (enrollment: Enrollment) => void;
   addInternalDonation: (donation: InternalDonation) => void;
@@ -99,6 +104,33 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
   }, []);
 
+  const recordAttendanceBatch = useCallback(
+    (newAttendances: Attendance[], markLessonCompletedId?: string) => {
+      setDb((prev) => {
+        const updatedMap = new Map<string, Attendance>();
+        for (const existing of prev.attendances) {
+          updatedMap.set(`${existing.lessonId}__${existing.studentPersonId}`, existing);
+        }
+        for (const incoming of newAttendances) {
+          updatedMap.set(`${incoming.lessonId}__${incoming.studentPersonId}`, incoming);
+        }
+
+        const updatedLessons = markLessonCompletedId
+          ? prev.lessons.map((l) =>
+              l.id === markLessonCompletedId ? { ...l, status: 'ministrada' as const } : l
+            )
+          : prev.lessons;
+
+        return {
+          ...prev,
+          attendances: Array.from(updatedMap.values()),
+          lessons: updatedLessons,
+        };
+      });
+    },
+    []
+  );
+
   const addGrade = useCallback((grade: Grade) => {
     setDb((prev) => ({
       ...prev,
@@ -106,10 +138,40 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }));
   }, []);
 
+  const saveGradeBatch = useCallback((incomingGrades: Grade[]) => {
+    setDb((prev) => {
+      const byKey = new Map<string, Grade>();
+      for (const existing of prev.grades) {
+        byKey.set(`${existing.assessmentId}__${existing.studentPersonId}`, existing);
+      }
+      for (const g of incomingGrades) {
+        byKey.set(`${g.assessmentId}__${g.studentPersonId}`, g);
+      }
+      return {
+        ...prev,
+        grades: Array.from(byKey.values()),
+      };
+    });
+  }, []);
+
+  const addAssessment = useCallback((assessment: Assessment) => {
+    setDb((prev) => ({
+      ...prev,
+      assessments: [...prev.assessments, assessment],
+    }));
+  }, []);
+
   const addLesson = useCallback((lesson: Lesson) => {
     setDb((prev) => ({
       ...prev,
-      lessons: [...prev.lessons, lesson],
+      lessons: [lesson, ...prev.lessons],
+    }));
+  }, []);
+
+  const updateLesson = useCallback((lesson: Lesson) => {
+    setDb((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((l) => (l.id === lesson.id ? lesson : l)),
     }));
   }, []);
 
@@ -155,8 +217,12 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
         getStudentAttendancePercentage,
         updatePerson,
         recordAttendance,
+        recordAttendanceBatch,
         addGrade,
+        saveGradeBatch,
+        addAssessment,
         addLesson,
+        updateLesson,
         addCalendarEvent,
         updateEnrollment,
         addInternalDonation,

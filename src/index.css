@@ -3,34 +3,293 @@
 @tailwind utilities;
 
 @layer base {
-  /*
-   * Controle Global de Acessibilidade — Tamanho da Fonte (WCAG 2.1 AA)
-   * Como o Tailwind utiliza unidades `rem` para tipografia e espaçamentos proporcionais,
-   * alterar o font-size do elemento <html> escala harmoniosamente toda a interface:
-   * - normal: 16px (100%) -> mínimo de 16px no corpo de texto
-   * - large: 18px (112.5%) -> leitura confortável para adultos e baixa visão leve
-   * - xlarge: 20px (125%) -> alta legibilidade para idosos e pais/responsáveis
-   */
-  html[data-font-scale="normal"],
+  :root {
+    color-scheme: light;
+
+    /* Superfícies Neutras (90% da interface — Papel Quente & Grafite Suave) */
+    --bg-paper: #FAF9F6;
+    --rgb-paper: 250 249 246;
+
+    --bg-surface: #FFFFFF;
+    --rgb-surface: 255 255 255;
+
+    --bg-subtle: #F7F6F2;
+    --rgb-subtle: 247 246 242;
+
+    --bg-track: #EFECE6;
+    --rgb-track: 239 236 230;
+
+    --bg-search: #F3F2EE;
+    --rgb-search: 243 242 238;
+
+    /* Tinta e Tipografia */
+    --text-ink: #18181B;
+    --rgb-ink: 24 24 27;
+
+    --text-muted: #71717A;
+    --rgb-muted: 113 113 122;
+
+    /* Bordas Estruturais */
+    --border-line: #EAE8E1;
+    --border-strong: #18181B;
+
+    /* Botão de Ação Primária (CTA Único) */
+    --cta-bg: #111111;
+    --cta-fg: #FFFFFF;
+    --cta-hover: #27272A;
+
+    /* Backdrop de Modais / Drawers */
+    --backdrop-overlay: rgba(24, 24, 27, 0.35);
+
+    /* Shimmer do Skeleton */
+    --shimmer-highlight: rgba(255, 255, 255, 0.55);
+
+    /* 4 Cores Semânticas Funcionais (10% da interface) */
+    --academic-fg: #1D4ED8;
+    --academic-bg: #EFF6FF;
+    --academic-border: #DBEAFE;
+
+    --progress-fg: #15803D;
+    --progress-bg: #F0FDF4;
+    --progress-border: #DCFCE7;
+
+    --assess-fg: #EAB308;
+    --assess-ink: #854D0E;
+    --assess-bg: #FEFCE8;
+    --assess-border: #FEF08A;
+
+    --critical-fg: #DC2626;
+    --critical-bg: #FEF2F2;
+    --critical-border: #FEE2E2;
+  }
+
+  html.dark {
+    color-scheme: dark;
+
+    /* Superfícies Neutras ("Quadro-Negro Suíço" — Carbono Quente & Descanso Ocular) */
+    --bg-paper: #0C0D10;
+    --rgb-paper: 12 13 16;
+
+    --bg-surface: #14161B;
+    --rgb-surface: 20 22 27;
+
+    --bg-subtle: #1E2128;
+    --rgb-subtle: 30 33 40;
+
+    --bg-track: #1E2128;
+    --rgb-track: 30 33 40;
+
+    --bg-search: #1E2128;
+    --rgb-search: 30 33 40;
+
+    /* Tinta e Tipografia */
+    --text-ink: #F4F4F5;
+    --rgb-ink: 244 244 245;
+
+    --text-muted: #A1A1AA;
+    --rgb-muted: 161 161 170;
+
+    /* Bordas Estruturais */
+    --border-line: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.24);
+
+    /* Botão de Ação Primária (CTA Único Invertido) */
+    --cta-bg: #F4F4F5;
+    --cta-fg: #111111;
+    --cta-hover: #E4E4E7;
+
+    /* Backdrop de Modais / Drawers */
+    --backdrop-overlay: rgba(0, 0, 0, 0.65);
+
+    /* Shimmer do Skeleton */
+    --shimmer-highlight: rgba(255, 255, 255, 0.07);
+
+    /* 4 Cores Semânticas Funcionais Calibradas WCAG AA */
+    --academic-fg: #60A5FA;
+    --academic-bg: rgba(59, 130, 246, 0.14);
+    --academic-border: rgba(96, 165, 250, 0.28);
+
+    --progress-fg: #4ADE80;
+    --progress-bg: rgba(34, 197, 94, 0.14);
+    --progress-border: rgba(74, 222, 128, 0.28);
+
+    --assess-fg: #FACC15;
+    --assess-ink: #FACC15;
+    --assess-bg: rgba(234, 179, 8, 0.14);
+    --assess-border: rgba(250, 204, 21, 0.28);
+
+    --critical-fg: #F87171;
+    --critical-bg: rgba(239, 68, 68, 0.14);
+    --critical-border: rgba(248, 113, 113, 0.28);
+  }
+
+  html[data-font-scale='normal'],
   html:not([data-font-scale]) {
     font-size: 16px;
   }
 
-  html[data-font-scale="large"] {
+  html[data-font-scale='large'] {
     font-size: 18px;
   }
 
-  html[data-font-scale="xlarge"] {
+  html[data-font-scale='xlarge'] {
     font-size: 20px;
   }
 
-  body {
-    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 leading-relaxed transition-colors duration-200;
-    font-size: 1rem; /* Garante no mínimo 16px no modo normal */
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
-  /* Anéis de foco sempre visíveis e de alto contraste para navegação por teclado */
+  body {
+    @apply bg-paper font-sans text-sm leading-relaxed text-ink transition-colors duration-150;
+  }
+
+  h1 {
+    @apply text-2xl font-bold leading-tight tracking-tight text-ink;
+  }
+
+  h2 {
+    @apply text-lg font-semibold tracking-tight text-ink;
+  }
+
+  ::selection {
+    @apply bg-assess-border text-ink;
+  }
+
+  svg.lucide {
+    stroke-width: 1.75;
+  }
+
   *:focus-visible {
-    @apply outline-none ring-2 ring-primary-600 ring-offset-2 ring-offset-white dark:ring-primary-400 dark:ring-offset-slate-950;
+    @apply outline-none ring-2 ring-ink ring-offset-2 ring-offset-paper;
+  }
+
+  input[type='number'],
+  input[type='time'],
+  input[type='date'] {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  .num {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  .eyebrow {
+    @apply text-xs font-medium uppercase tracking-wider text-ink-muted;
+  }
+
+  /* Shimmer sutil em GPU (opacity suave) para Skeletons, sem animate-pulse agressivo */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--bg-track);
+  }
+
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      var(--shimmer-highlight) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    animation: bonsucesso-shimmer 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+}
+
+@keyframes bonsucesso-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Acessibilidade: respeita prefers-reduced-motion do sistema operacional */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-line) transparent;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* ============================================================================
+   5. MODO DE IMPRESSÃO GLOBAL (@media print — Relatórios Oficiais Bonsucesso+)
+   ============================================================================ */
+@media print {
+  :root,
+  html,
+  html.dark,
+  body {
+    --bg-paper: #FFFFFF !important;
+    --rgb-paper: 255 255 255 !important;
+    --bg-surface: #FFFFFF !important;
+    --rgb-surface: 255 255 255 !important;
+    --bg-subtle: #FFFFFF !important;
+    --rgb-subtle: 255 255 255 !important;
+    --bg-track: #F4F4F5 !important;
+    --rgb-track: 244 244 245 !important;
+    --text-ink: #000000 !important;
+    --rgb-ink: 0 0 0 !important;
+    --text-muted: #3F3F46 !important;
+    --rgb-muted: 63 63 70 !important;
+    --border-line: #D4D4D8 !important;
+    --border-strong: #000000 !important;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 12pt !important;
+  }
+
+  aside,
+  header,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #D4D4D8 !important;
+    padding: 6px 8px !important;
+    color: #000000 !important;
+  }
+
+  tr,
+  article,
+  section {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }

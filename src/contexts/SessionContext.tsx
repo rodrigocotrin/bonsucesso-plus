@@ -41,7 +41,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { db, getPersonById, getStudentsForGuardian } = useMockDatabase();
 
   const [activeAccountId, setActiveAccountId] = useState<string | null>(() => {
-    return localStorage.getItem(SESSION_STORAGE_KEY);
+    const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (saved === 'LOGGED_OUT') return null;
+    return saved || DEFAULT_DEMO_ACCOUNT_BY_ROLE.coordinator;
   });
 
   const [selectedGuardianStudentId, setSelectedGuardianStudentId] = useState<string | null>(() => {
@@ -73,7 +75,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (activeAccountId) {
       localStorage.setItem(SESSION_STORAGE_KEY, activeAccountId);
     } else {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
+      localStorage.setItem(SESSION_STORAGE_KEY, 'LOGGED_OUT');
     }
   }, [activeAccountId]);
 
@@ -186,20 +188,32 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSelectedGuardianStudentId(studentPersonId);
   }, []);
 
+  const contextValue = useMemo<SessionContextValue>(
+    () => ({
+      isAuthenticated: Boolean(currentAccount && currentPerson),
+      currentAccount,
+      currentPerson,
+      selectedStudentForGuardian,
+      linkedStudentsForGuardian,
+      setSelectedStudentIdForGuardian,
+      loginWithCredentials,
+      quickLoginAsRole,
+      logout,
+    }),
+    [
+      currentAccount,
+      currentPerson,
+      selectedStudentForGuardian,
+      linkedStudentsForGuardian,
+      setSelectedStudentIdForGuardian,
+      loginWithCredentials,
+      quickLoginAsRole,
+      logout,
+    ]
+  );
+
   return (
-    <SessionContext.Provider
-      value={{
-        isAuthenticated: Boolean(currentAccount && currentPerson),
-        currentAccount,
-        currentPerson,
-        selectedStudentForGuardian,
-        linkedStudentsForGuardian,
-        setSelectedStudentIdForGuardian,
-        loginWithCredentials,
-        quickLoginAsRole,
-        logout,
-      }}
-    >
+    <SessionContext.Provider value={contextValue}>
       {children}
     </SessionContext.Provider>
   );

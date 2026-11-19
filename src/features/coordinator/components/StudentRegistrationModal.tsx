@@ -16,7 +16,8 @@ import {
   Responsibility,
   UserAccount,
 } from '../../../types';
-import { getDisplayName } from '../../../utils/formatters';
+import { maskCpf, maskPhoneBR } from '../../../lib/masks';
+import { getDisplayName } from '../../../lib/person';
 import {
   calculateAgeYears,
   validateCpfField,
@@ -79,9 +80,11 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
 
   // Erros específicos por campo
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isFormDirty, setIsFormDirty] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
+    setIsFormDirty(false);
     if (editingRow) {
       setFullName(editingRow.person.fullName);
       setSocialName(editingRow.person.socialName ?? '');
@@ -258,11 +261,12 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      isDirty={isFormDirty}
       size="lg"
       title={
         editingStudentId
-          ? 'Editar Cadastro do(a) Estudante'
-          : 'Cadastrar Novo(a) Estudante (RF04)'
+          ? 'Editar Aluno(a)'
+          : 'Novo(a) Aluno(a)'
       }
       description="Formulário organizado em 4 seções claras para facilitar o preenchimento pela secretaria ou coordenação."
       footer={
@@ -280,10 +284,15 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
         </>
       }
     >
-      <form onSubmit={handleSaveStudentForm} className="space-y-6" noValidate>
+      <form
+        onSubmit={handleSaveStudentForm}
+        onChange={() => setIsFormDirty(true)}
+        className="space-y-6"
+        noValidate
+      >
         {/* Seção 1: Dados Pessoais */}
-        <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <legend className="px-2 text-sm font-extrabold uppercase tracking-wider text-primary-900 dark:text-primary-300">
+        <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+          <legend className="px-2 text-sm font-extrabold uppercase tracking-wider text-primary-900">
             Seção 1 • Dados Pessoais e Turma
           </legend>
 
@@ -306,10 +315,10 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
             />
 
             <Input
-              label="CPF (11 números)"
+              label="CPF (000.000.000-00)"
               required
               value={cpf}
-              onChange={(e) => setCpf(e.target.value)}
+              onChange={(e) => setCpf(maskCpf(e.target.value))}
               errorText={errors.cpf}
               placeholder="Ex: 401.501.601-01"
             />
@@ -357,8 +366,8 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
         </fieldset>
 
         {/* Seção 2: Contato */}
-        <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <legend className="px-2 text-sm font-extrabold uppercase tracking-wider text-primary-900 dark:text-primary-300">
+        <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+          <legend className="px-2 text-sm font-extrabold uppercase tracking-wider text-primary-900">
             Seção 2 • Contato do(a) Estudante
           </legend>
 
@@ -367,7 +376,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
               label="Celular / WhatsApp com DDD"
               required
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(maskPhoneBR(e.target.value))}
               errorText={errors.phone}
               placeholder="Ex: (21) 99201-0001"
             />
@@ -385,8 +394,8 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
         </fieldset>
 
         {/* Seção 3: Dados de Responsável */}
-        <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <legend className="px-2 text-sm font-extrabold uppercase tracking-wider text-primary-900 dark:text-primary-300">
+        <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+          <legend className="px-2 text-sm font-extrabold uppercase tracking-wider text-primary-900">
             Seção 3 • Vínculo com Pai, Mãe ou Responsável
           </legend>
 
@@ -440,8 +449,8 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
         </fieldset>
 
         {/* Seção 4: Informações Gerais */}
-        <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <legend className="px-2 text-sm font-extrabold uppercase tracking-wider text-primary-900 dark:text-primary-300">
+        <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+          <legend className="px-2 text-sm font-extrabold uppercase tracking-wider text-primary-900">
             Seção 4 • Informações Gerais e Acolhimento
           </legend>
 

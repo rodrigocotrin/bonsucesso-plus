@@ -1,16 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
-  BookOpen,
-  Clock,
   ExternalLink,
   FilePenLine,
-  Layers,
   Link2,
-  MapPin,
   Plus,
   Save,
   Trash2,
-  Users,
 } from 'lucide-react';
 import {
   Badge,
@@ -240,54 +235,37 @@ export const CoordinatorClassesPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<Layers className="h-4 w-4" />}>
-            Estrutura Acadêmica • Turmas e Atribuição Docente (UC12)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Gestão de Turmas
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Acompanhe a ocupação de cada turma, vincule disciplinas do ENEM aos professores
-            voluntários e configure os links do Google Sala de Aula.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto + Filtro inline alinhado pela base do input (Regra 2 e 3) */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1>Turmas &amp; Horários</h1>
 
-        <Button
-          variant="primary"
-          size="lg"
-          leftIcon={<Plus className="h-5 w-5" />}
-          onClick={handleOpenCreateModal}
-        >
-          Criar Nova Turma
-        </Button>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-56">
+            <Select
+              label="Período"
+              value={selectedPeriodFilter}
+              onChange={(e) => setSelectedPeriodFilter(e.target.value)}
+              options={[
+                { value: 'all', label: 'Todos os Períodos' },
+                ...db.academicPeriods.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                })),
+              ]}
+            />
+          </div>
+
+          <Button
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={handleOpenCreateModal}
+          >
+            Nova Turma
+          </Button>
+        </div>
       </div>
 
-      {/* Filtro por Período Letivo */}
-      <Card
-        as="section"
-        title="Filtrar por Período Letivo"
-        subtitle="Consulte as turmas oferecidas em cada semestre."
-      >
-        <div className="max-w-md">
-          <Select
-            label="Período Letivo"
-            value={selectedPeriodFilter}
-            onChange={(e) => setSelectedPeriodFilter(e.target.value)}
-            options={[
-              { value: 'all', label: 'Todos os Períodos Letivos' },
-              ...db.academicPeriods.map((p) => ({
-                value: p.id,
-                label: p.isCurrent ? `${p.name} (2026.2 — Atual)` : p.name,
-              })),
-            ]}
-          />
-        </div>
-      </Card>
-
-      {/* Cards de Turmas */}
+      {/* Cards de Turmas Limpos (Sem box-ception — Regra 3) */}
       <div className="grid grid-cols-1 gap-6">
         {enrichedClassRooms.map(
           ({ classRoom, periodName, occupiedCount, assignments }) => {
@@ -299,16 +277,19 @@ export const CoordinatorClassesPage: React.FC = () => {
             return (
               <Card
                 key={classRoom.id}
-                className="border-t-4 border-t-primary-700 dark:border-t-primary-500"
                 title={classRoom.name}
-                subtitle={`Período Letivo: ${periodName} (2026.2) • Turno: ${classRoom.shift}`}
+                subtitle={`${classRoom.shift} • ${classRoom.roomLabel} • ${classRoom.scheduleSummary}`}
                 headerAction={
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="primary" icon={<Users className="h-4 w-4" />}>
-                      Ocupação: {occupiedCount} / {classRoom.capacity} alunos ({occupancyPct}%)
+                    <Badge variant="academic">
+                      <span className="font-mono tabular-nums">
+                        {occupiedCount}/{classRoom.capacity}
+                      </span>{' '}
+                      vagas ({occupancyPct}%)
                     </Badge>
                     <Button
-                      variant="ghost"
+                      variant="secondary"
+                      size="sm"
                       onClick={() =>
                         handleOpenEditModal({
                           classRoom,
@@ -319,84 +300,41 @@ export const CoordinatorClassesPage: React.FC = () => {
                       }
                       leftIcon={<FilePenLine className="h-4 w-4" />}
                     >
-                      Editar Turma e Professores
+                      Editar
                     </Button>
                   </div>
                 }
+                noPadding
               >
-                <div className="space-y-5">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 text-sm">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-950/50">
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                        <MapPin className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                        <span>Sala / Espaço</span>
-                      </span>
-                      <p className="mt-1 font-extrabold text-slate-900 dark:text-white">
-                        {classRoom.roomLabel}
-                      </p>
-                    </div>
+                <ul className="divide-y divide-line">
+                  {assignments.map(({ classSubject, subject, teacher }) => (
+                    <li
+                      key={classSubject.id}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">
+                          {subject?.name ?? 'Disciplina'}
+                        </p>
+                        <p className="text-xs text-ink-muted">
+                          {getDisplayName(teacher)} • {classSubject.weeklySchedule}
+                        </p>
+                      </div>
 
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-950/50">
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                        <Clock className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                        <span>Dias e Horários</span>
-                      </span>
-                      <p className="mt-1 font-extrabold text-slate-900 dark:text-white">
-                        {classRoom.scheduleSummary}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-950/50">
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                        <BookOpen className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                        <span>Disciplinas Vinculadas</span>
-                      </span>
-                      <p className="mt-1 font-extrabold text-slate-900 dark:text-white">
-                        {assignments.length} disciplinas com Google Sala de Aula
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Tabela de Disciplinas Oferecidas, Professores e Links do Classroom */}
-                  <div>
-                    <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2.5">
-                      Disciplinas Oferecidas, Professores Atribuídos e Google Sala de Aula
-                    </h3>
-
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {assignments.map(({ classSubject, subject, teacher }) => (
-                        <div
-                          key={classSubject.id}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-950/40"
+                      {classSubject.classroomUrl && (
+                        <a
+                          href={classSubject.classroomUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-academic-bg px-3 text-xs font-medium text-academic hover:bg-academic hover:text-white"
                         >
-                          <div className="space-y-0.5 min-w-0">
-                            <p className="text-base font-extrabold text-slate-900 dark:text-white">
-                              {subject?.name ?? 'Disciplina'}
-                            </p>
-                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                              Docente: {getDisplayName(teacher)}
-                            </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {classSubject.weeklySchedule}
-                            </p>
-                          </div>
-
-                          {classSubject.classroomUrl && (
-                            <a
-                              href={classSubject.classroomUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-bold text-primary-900 hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-200"
-                            >
-                              <span>Classroom</span>
-                              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                          <span>Google Classroom</span>
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </Card>
             );
           }
@@ -410,8 +348,8 @@ export const CoordinatorClassesPage: React.FC = () => {
         size="lg"
         title={
           editingClassId
-            ? 'Editar Turma e Atribuições Docentes'
-            : 'Criar Nova Turma (UC12)'
+            ? 'Editar Turma'
+            : 'Nova Turma'
         }
         description="Associe o período letivo, capacidade, disciplinas oferecidas, professores voluntários e links do Google Sala de Aula."
         footer={
@@ -497,9 +435,9 @@ export const CoordinatorClassesPage: React.FC = () => {
           </div>
 
           {/* Bloco de Disciplinas Oferecidas, Professor Atribuído e Link do Google Sala de Aula */}
-          <div className="space-y-3 border-t border-slate-200 pt-4 dark:border-slate-800">
+          <div className="space-y-3 border-t border-slate-200 pt-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+              <h4 className="text-base font-extrabold text-slate-900">
                 Disciplinas Oferecidas, Professores e Google Sala de Aula
               </h4>
               <Button
@@ -516,16 +454,16 @@ export const CoordinatorClassesPage: React.FC = () => {
               {draftAssignments.map((assign, idx) => (
                 <div
                   key={idx}
-                  className="rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50 space-y-3"
+                  className="rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-primary-900 dark:text-primary-300">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-primary-900">
                       Disciplina #{idx + 1}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleRemoveDraftAssignment(idx)}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-danger-700 hover:underline dark:text-red-400"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-danger-700 hover:underline"
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>Remover</span>

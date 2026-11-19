@@ -1,14 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
-  BookOpen,
-  Calendar,
-  Clock,
   FilePenLine,
   Plus,
   Power,
   RotateCcw,
   Save,
-  Users,
 } from 'lucide-react';
 import {
   Badge,
@@ -191,94 +187,74 @@ export const CoordinatorSubjectsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<BookOpen className="h-4 w-4" />}>
-            Matriz Curricular ENEM (UC11)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Gestão de Disciplinas
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Organize as disciplinas oferecidas pelo cursinho alinhadas às áreas de conhecimento do
-            ENEM, confira os professores voluntários associados e gerencie o status de oferta.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Disciplinas</h1>
 
         <Button
           variant="primary"
-          size="lg"
-          leftIcon={<Plus className="h-5 w-5" />}
+          leftIcon={<Plus className="h-4 w-4" />}
           onClick={handleOpenCreateModal}
         >
-          Cadastrar Disciplina
+          Nova Disciplina
         </Button>
       </div>
 
-      {/* Filtros por Área do ENEM e Status */}
-      <Card
-        as="section"
-        title="Filtrar Disciplinas por Área do ENEM"
-        subtitle="Selecione uma área de conhecimento ou status para filtrar os cartões abaixo."
-      >
+      <Card>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Select
-            label="Área de Conhecimento do ENEM"
+            label="Área do ENEM"
             value={selectedAreaFilter}
             onChange={(e) => setSelectedAreaFilter(e.target.value)}
             options={[
-              { value: 'all', label: 'Todas as Áreas do ENEM' },
+              { value: 'all', label: 'Todas as Áreas' },
               ...ENEM_AREAS.map((a) => ({ value: a, label: a })),
             ]}
           />
 
           <Select
-            label="Status da Disciplina"
+            label="Situação"
             value={selectedStatusFilter}
             onChange={(e) => setSelectedStatusFilter(e.target.value)}
             options={[
-              { value: 'all', label: 'Todas (Ativas e Inativas)' },
-              { value: 'active', label: 'Somente Ativas' },
-              { value: 'inactive', label: 'Somente Inativas' },
+              { value: 'all', label: 'Todas' },
+              { value: 'active', label: 'Ativas' },
+              { value: 'inactive', label: 'Inativas' },
             ]}
           />
         </div>
       </Card>
 
-      {/* Grade de Cards de Disciplinas ou EmptyState */}
       {filteredSubjects.length === 0 && (
         <EmptyState
-          title="Nenhuma disciplina encontrada para este filtro"
-          description="Altere o filtro de área do ENEM ou de status para visualizar as disciplinas cadastradas."
+          title="Nenhuma disciplina encontrada"
+          description="Altere os filtros para visualizar as disciplinas cadastradas."
           action={
             <Button
-              variant="primary"
+              variant="secondary"
               onClick={() => {
                 setSelectedAreaFilter('all');
                 setSelectedStatusFilter('all');
               }}
             >
-              Mostrar Todas as Disciplinas
+              Limpar filtros
             </Button>
           }
         />
       )}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredSubjects.map(({ subject, associatedTeachers, lessonsInMonthCount }) => {
           const isActive = subject.status === 'active';
           return (
             <Card
               key={subject.id}
-              className={`flex flex-col justify-between ${
-                isActive
-                  ? 'border-t-4 border-t-primary-700 dark:border-t-primary-500'
-                  : 'opacity-80 border-t-4 border-t-slate-400'
-              }`}
+              className={!isActive ? 'opacity-75' : undefined}
               footer={
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Button
                     variant="ghost"
+                    size="sm"
                     onClick={() => handleOpenEditModal(subject)}
                     leftIcon={<FilePenLine className="h-4 w-4" />}
                   >
@@ -286,7 +262,8 @@ export const CoordinatorSubjectsPage: React.FC = () => {
                   </Button>
 
                   <Button
-                    variant={isActive ? 'danger' : 'primary'}
+                    variant={isActive ? 'danger' : 'secondary'}
+                    size="sm"
                     onClick={() => setStatusTarget(subject)}
                     leftIcon={
                       isActive ? (
@@ -301,48 +278,32 @@ export const CoordinatorSubjectsPage: React.FC = () => {
                 </div>
               }
             >
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <Badge variant="secondary">{subject.area}</Badge>
-                    <h2 className="mt-2 text-xl font-extrabold text-slate-900 dark:text-white">
+                    <Badge variant="academic">{subject.area}</Badge>
+                    <h2 className="mt-1.5 text-base font-semibold text-ink">
                       {subject.name}
                     </h2>
                   </div>
 
-                  <Badge variant={isActive ? 'success' : 'neutral'}>
+                  <Badge variant={isActive ? 'progress' : 'neutral'}>
                     {isActive ? 'Ativa' : 'Inativa'}
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5 text-xs">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/50">
-                    <span className="flex items-center gap-1 font-bold text-slate-500">
-                      <Calendar className="h-3.5 w-3.5 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                      <span>Aulas no Mês</span>
-                    </span>
-                    <p className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">
-                      {lessonsInMonthCount} aulas
-                    </p>
-                  </div>
+                <p className="text-xs text-ink-muted">
+                  <span className="font-mono font-semibold text-ink tabular-nums">
+                    {lessonsInMonthCount}
+                  </span>{' '}
+                  aulas/mês •{' '}
+                  <span className="font-mono font-semibold text-ink tabular-nums">
+                    {subject.workloadHours}h
+                  </span>{' '}
+                  no semestre
+                </p>
 
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/50">
-                    <span className="flex items-center gap-1 font-bold text-slate-500">
-                      <Clock className="h-3.5 w-3.5 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                      <span>Carga Semestral</span>
-                    </span>
-                    <p className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">
-                      {subject.workloadHours}h
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    <Users className="h-3.5 w-3.5 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                    <span>Professores Voluntários Associados:</span>
-                  </span>
-
+                <div className="pt-1">
                   {associatedTeachers.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {associatedTeachers.map((teacher) => (
@@ -352,9 +313,7 @@ export const CoordinatorSubjectsPage: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-500 italic">
-                      Aguardando atribuição em turma
-                    </p>
+                    <p className="text-xs text-ink-muted">Sem docente vinculado</p>
                   )}
                 </div>
               </div>
@@ -369,8 +328,8 @@ export const CoordinatorSubjectsPage: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         title={
           editingSubjectId
-            ? 'Editar Disciplina do ENEM'
-            : 'Cadastrar Nova Disciplina (UC11)'
+            ? 'Editar Disciplina'
+            : 'Nova Disciplina'
         }
         description="O sistema verifica automaticamente se já existe uma disciplina com o mesmo nome."
         footer={

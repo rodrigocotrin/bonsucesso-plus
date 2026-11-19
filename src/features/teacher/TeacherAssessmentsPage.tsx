@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
-  GraduationCap,
   Keyboard,
   Plus,
   Save,
@@ -18,14 +17,31 @@ import {
 } from '../../components/ui';
 import { useMockDatabase } from '../../contexts/MockDatabaseContext';
 import { useToast } from '../../contexts/ToastContext';
+import { getDisplayName } from '../../lib/person';
 import { Assessment, AssessmentType, Grade } from '../../types';
-import { formatDateBR, getDisplayName } from '../../utils/formatters';
+import { formatDateBR } from '../../utils/formatters';
 import { validateGradeScore } from '../../utils/validators';
 
 interface DraftGradeRow {
   scoreText: string;
   feedback: string;
   errorMessage?: string;
+}
+
+interface GradesDraftPayload {
+  savedAt: string; // HH:mm
+  rows: Record<string, DraftGradeRow>;
+}
+
+function getGradesDraftStorageKey(assessmentId: string, classRoomId: string): string {
+  return `bonsucesso_draft_grades_${assessmentId}_${classRoomId}`;
+}
+
+function formatNowTimeHHMM(): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
 }
 
 export const TeacherAssessmentsPage: React.FC = () => {
@@ -64,7 +80,7 @@ export const TeacherAssessmentsPage: React.FC = () => {
     [db.assessments, selectedAssessmentId]
   );
 
-  // Alunos matriculados na turma selecionada
+  // Alunos matriculados na turma selecionada (ordenados por Nome Social / getDisplayName)
   const enrolledStudents = useMemo(() => {
     return db.enrollments
       .filter((e) => e.classRoomId === selectedClassRoomId && e.status === 'ativa')
@@ -73,22 +89,44 @@ export const TeacherAssessmentsPage: React.FC = () => {
         return person ? { person, enrollment } : null;
       })
       .filter(
-        (item): item is { person: NonNullable<typeof item>['person']; enrollment: NonNullable<typeof item>['enrollment'] } =>
-          Boolean(item)
+        (item): item is {
+          person: NonNullable<typeof item>['person'];
+          enrollment: NonNullable<typeof item>['enrollment'];
+        } => Boolean(item)
       )
       .sort((a, b) =>
         getDisplayName(a.person).localeCompare(getDisplayName(b.person), 'pt-BR')
       );
   }, [db.enrollments, db.persons, selectedClassRoomId]);
 
-  // Estado local da grade de lançamento em lote
+  // Estado local da grade de lançamento em lote + Auto-Save (600ms debounce)
   const [draftGrades, setDraftGrades] = useState<Record<string, DraftGradeRow>>({});
+  const [hasUnsavedDraftChanges, setHasUnsavedDraftChanges] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
 
-  // Refs para navegação rápida via Enter entre as linhas da coluna de Nota
+  // Refs para navegação rápida via Enter / ↑ / ↓ entre as linhas da coluna de Nota
   const scoreInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
     if (!currentAssessment) return;
+
+    try {
+      const savedRaw = localStorage.getItem(
+        getGradesDraftStorageKey(currentAssessment.id, selectedClassRoomId)
+      );
+      if (savedRaw) {
+        const parsed = JSON.parse(savedRaw) as GradesDraftPayload;
+        if (parsed && parsed.rows) {
+          setDraftGrades(parsed.rows);
+          setDraftSavedAt(parsed.savedAt);
+          setHasUnsavedDraftChanges(false);
+          return;
+        }
+      }
+    } catch {
+      // ignore storage error
+    }
+
     const map: Record<string, DraftGradeRow> = {};
 
     for (const { person } of enrolledStudents) {
@@ -104,7 +142,34 @@ export const TeacherAssessmentsPage: React.FC = () => {
     }
 
     setDraftGrades(map);
-  }, [currentAssessment, enrolledStudents, db.grades]);
+    setDraftSavedAt(null);
+    setHasUnsavedDraftChanges(false);
+  }, [currentAssessment, selectedClassRoomId, enrolledStudents, db.grades]);
+
+  // Auto-save com debounce de 600ms no localStorage
+  useEffect(() => {
+    if (!currentAssessment || !hasUnsavedDraftChanges) return;
+
+    const timer = window.setTimeout(() => {
+      const timeLabel = formatNowTimeHHMM();
+      const payload: GradesDraftPayload = {
+        savedAt: timeLabel,
+        rows: draftGrades,
+      };
+      try {
+        localStorage.setItem(
+          getGradesDraftStorageKey(currentAssessment.id, selectedClassRoomId),
+          JSON.stringify(payload)
+        );
+        setDraftSavedAt(timeLabel);
+        setHasUnsavedDraftChanges(false);
+      } catch {
+        // ignore quota errors
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [currentAssessment, selectedClassRoomId, draftGrades, hasUnsavedDraftChanges]);
 
   const maxScore = currentAssessment?.maxScore ?? 1000;
 
@@ -118,6 +183,7 @@ export const TeacherAssessmentsPage: React.FC = () => {
         errorMessage: validation.isValid ? undefined : validation.errorMessage,
       },
     }));
+    setHasUnsavedDraftChanges(true);
   };
 
   const handleFeedbackChange = (studentPersonId: string, feedback: string) => {
@@ -129,18 +195,26 @@ export const TeacherAssessmentsPage: React.FC = () => {
         feedback,
       },
     }));
+    setHasUnsavedDraftChanges(true);
   };
 
   const handleScoreKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
     rowIndex: number
   ) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' || e.key === 'ArrowDown') {
       e.preventDefault();
       const nextInput = scoreInputRefs.current[rowIndex + 1];
       if (nextInput) {
         nextInput.focus();
         nextInput.select();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevInput = scoreInputRefs.current[rowIndex - 1];
+      if (prevInput) {
+        prevInput.focus();
+        prevInput.select();
       }
     }
   };
@@ -155,7 +229,7 @@ export const TeacherAssessmentsPage: React.FC = () => {
     if (hasValidationErrors) {
       showToast({
         variant: 'error',
-        title: 'Corrija as notas fora do intervalo permitido!',
+        title: 'Corrija as notas fora do intervalo permitido',
         description: `As notas devem estar entre 0 e ${maxScore} pontos.`,
       });
       return;
@@ -175,7 +249,6 @@ export const TeacherAssessmentsPage: React.FC = () => {
           g.studentPersonId === person.id
       );
 
-      // Mantém areaScores proporcionais se for um simulado ENEM (0-1000)
       const val = check.numericValue;
       const areaScores =
         currentAssessment.maxScore === 1000
@@ -209,12 +282,22 @@ export const TeacherAssessmentsPage: React.FC = () => {
     }
 
     saveGradeBatch(gradesToSave);
+    try {
+      localStorage.removeItem(
+        getGradesDraftStorageKey(currentAssessment.id, selectedClassRoomId)
+      );
+    } catch {
+      // ignore
+    }
+    setDraftSavedAt(null);
+    setHasUnsavedDraftChanges(false);
+
     showToast({
       variant: 'success',
-      title: 'Notas salvas em lote com sucesso!',
+      title: 'Notas salvas em lote com sucesso',
       description: `${gradesToSave.length} ${
         gradesToSave.length === 1 ? 'nota lançada' : 'notas lançadas'
-      } em "${currentAssessment.title}". O portal do Aluno e do Responsável já foi atualizado!`,
+      } em "${currentAssessment.title}".`,
     });
   };
 
@@ -257,44 +340,57 @@ export const TeacherAssessmentsPage: React.FC = () => {
 
     showToast({
       variant: 'success',
-      title: 'Nova avaliação criada!',
-      description: `"${created.title}" (escala de 0 a ${created.maxScore} pts) pronta para lançamento de notas.`,
+      title: 'Nova avaliação criada',
+      description: `"${created.title}" (0 a ${created.maxScore} pts) pronta para lançamento.`,
     });
   };
 
   return (
-    <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<GraduationCap className="h-4 w-4" />}>
-            Avaliações e Lançamento em Lote (UC19)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Avaliações e Lançamento de Notas
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Selecione uma avaliação existente ou crie uma nova (escala ENEM de 0 a 1.000 ou lista de
-            0 a 10) para lançar notas em lote com navegação rápida por teclado.
-          </p>
+    <div className="space-y-6">
+      {/* Cabeçalho com Indicador de Auto-Save + CTA Único */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1>Avaliações</h1>
+
+          {draftSavedAt && (
+            <span
+              role="status"
+              aria-live="polite"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted"
+            >
+              <span
+                className="h-2 w-2 rounded-full bg-progress"
+                aria-hidden="true"
+              />
+              <span>
+                Rascunho salvo às <strong className="num text-ink">{draftSavedAt}</strong>
+              </span>
+            </span>
+          )}
         </div>
 
-        <Button
-          variant="primary"
-          size="lg"
-          leftIcon={<Plus className="h-5 w-5" />}
-          onClick={() => setIsNewModalOpen(true)}
-        >
-          Nova Avaliação / Simulado
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => setIsNewModalOpen(true)}
+          >
+            Nova Avaliação
+          </Button>
+
+          <Button
+            variant="primary"
+            disabled={hasValidationErrors}
+            leftIcon={<Save className="h-4 w-4" />}
+            onClick={handleSaveBatchGrades}
+          >
+            Salvar Notas
+          </Button>
+        </div>
       </div>
 
-      {/* 1. SELEÇÃO DE TURMA E AVALIAÇÃO */}
-      <Card
-        as="section"
-        title="1. Selecionar Turma e Avaliação"
-        subtitle="Escolha a turma e o simulado/atividade para carregar a grade de notas."
-      >
+      {/* Seleção de Turma e Avaliação + Legenda de Atalhos */}
+      <div className="rounded-lg border border-line bg-surface p-4 space-y-3">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Select
             label="Turma"
@@ -307,41 +403,69 @@ export const TeacherAssessmentsPage: React.FC = () => {
           />
 
           <Select
-            label="Avaliação ou Simulado"
+            label="Avaliação"
             value={selectedAssessmentId}
             onChange={(e) => setSelectedAssessmentId(e.target.value)}
             options={availableAssessments.map((a) => ({
               value: a.id,
-              label: `${a.title} (0 a ${a.maxScore} pts • ${formatDateBR(a.date)})`,
+              label: `${a.title} (0–${a.maxScore} pts • ${formatDateBR(a.date)})`,
             }))}
           />
         </div>
-      </Card>
 
-      {/* 2. GRADE DE LANÇAMENTO RÁPIDO EM LOTE */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2.5 text-xs text-ink-muted">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+              <Keyboard className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+              <span>Atalhos na coluna de nota:</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <kbd className="num rounded border border-line bg-subtle px-1.5 py-0.5 text-[11px] font-semibold text-ink">
+                Enter
+              </kbd>
+              <span>Próximo aluno</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <kbd className="num rounded border border-line bg-subtle px-1.5 py-0.5 text-[11px] font-semibold text-ink">
+                ↑ / ↓
+              </kbd>
+              <span>Subir / descer linha</span>
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => scoreInputRefs.current[0]?.focus()}
+            className="text-xs font-medium text-academic hover:underline"
+          >
+            Focar 1ª nota →
+          </button>
+        </div>
+      </div>
+
+      {/* GRADE DE LANÇAMENTO RÁPIDO EM LOTE */}
       {currentAssessment && (
         <Card
           as="section"
-          title={`2. Grade de Lançamento em Lote — ${currentAssessment.title}`}
-          subtitle={`Intervalo permitido: de 0 até ${currentAssessment.maxScore} pontos. Pressione Tab ou Enter para avançar rapidamente para o próximo aluno.`}
+          title={currentAssessment.title}
           headerAction={
-            <Badge variant="secondary" icon={<Keyboard className="h-4 w-4" />}>
+            <Badge variant="academic">
               Escala: 0 a {currentAssessment.maxScore} pts
             </Badge>
           }
         >
-          <div className="space-y-6">
+          <div className="space-y-4">
             {hasValidationErrors && (
               <CalloutAlert
                 variant="error"
-                title="Há notas fora do intervalo permitido na lista abaixo"
+                title="Há notas fora do intervalo permitido"
               >
-                Por favor, corrija os campos destacados em vermelho antes de salvar. Nenhuma nota
-                pode ser negativa ou ultrapassar <strong>{maxScore} pontos</strong>.
+                Corrija os campos destacados em vermelho antes de salvar (0 a{' '}
+                <strong className="num">{maxScore}</strong> pontos).
               </CalloutAlert>
             )}
 
-            <div className="space-y-4">
+            <div className="divide-y divide-line">
               {enrolledStudents.map(({ person, enrollment }, idx) => {
                 const row = draftGrades[person.id] ?? {
                   scoreText: '',
@@ -353,35 +477,28 @@ export const TeacherAssessmentsPage: React.FC = () => {
                 return (
                   <div
                     key={person.id}
-                    className={`rounded-2xl border-2 p-4 transition-all ${
-                      hasRowError
-                        ? 'border-danger-600 bg-danger-50/50 dark:border-red-500 dark:bg-danger-950/30'
-                        : 'border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950/50'
+                    className={`py-3.5 first:pt-0 last:pb-0 ${
+                      hasRowError ? 'rounded-md bg-critical-bg px-3' : ''
                     }`}
                   >
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
-                      {/* Identificação do Estudante (4 cols) */}
-                      <div className="lg:col-span-4 space-y-1">
-                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
-                          #{idx + 1} • Matrícula {enrollment.enrollmentCode}
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-center">
+                      {/* Identificação do Estudante (Prioridade total ao Nome Social — 4 cols) */}
+                      <div className="lg:col-span-4">
+                        <span className="num text-xs font-medium text-ink-muted">
+                          #{idx + 1} • {enrollment.enrollmentCode}
                         </span>
-                        <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                        <h3 className="text-sm font-semibold text-ink">
                           {displayName}
                         </h3>
-                        {person.socialName && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Reg. civil: {person.fullName}
-                          </p>
-                        )}
                       </div>
 
                       {/* Campo de Nota com Validação em Tempo Real (3 cols) */}
                       <div className="lg:col-span-3">
                         <label
                           htmlFor={`grade-input-${person.id}`}
-                          className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1"
+                          className="mb-1 block text-xs font-medium text-ink-muted"
                         >
-                          Nota (0 a {maxScore})
+                          Nota (0 a <span className="num">{maxScore}</span>)
                         </label>
                         <input
                           ref={(el) => {
@@ -399,16 +516,16 @@ export const TeacherAssessmentsPage: React.FC = () => {
                           onKeyDown={(e) => handleScoreKeyDown(e, idx)}
                           placeholder={`0 a ${maxScore}`}
                           aria-invalid={hasRowError}
-                          className={`w-full min-h-[44px] rounded-xl border-2 px-3.5 py-2 text-base font-extrabold transition-colors bg-white text-slate-900 dark:bg-slate-900 dark:text-white ${
+                          className={`num h-10 w-full rounded-md border px-3 text-sm font-semibold transition-colors bg-surface text-ink ${
                             hasRowError
-                              ? 'border-danger-700 dark:border-red-500'
-                              : 'border-slate-300 dark:border-slate-700 focus-visible:border-primary-700'
+                              ? 'border-critical'
+                              : 'border-line focus-visible:border-ink'
                           }`}
                         />
                         {hasRowError && (
                           <p
                             role="alert"
-                            className="mt-1 flex items-start gap-1 text-xs font-bold text-danger-700 dark:text-red-300"
+                            className="mt-1 flex items-start gap-1 text-xs font-medium text-critical"
                           >
                             <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden="true" />
                             <span>{row.errorMessage}</span>
@@ -420,7 +537,7 @@ export const TeacherAssessmentsPage: React.FC = () => {
                       <div className="lg:col-span-5">
                         <label
                           htmlFor={`feedback-input-${person.id}`}
-                          className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1"
+                          className="mb-1 block text-xs font-medium text-ink-muted"
                         >
                           Observação Pedagógica (Opcional)
                         </label>
@@ -431,31 +548,14 @@ export const TeacherAssessmentsPage: React.FC = () => {
                           onChange={(e) =>
                             handleFeedbackChange(person.id, e.target.value)
                           }
-                          placeholder="Ex: Ótima evolução na Competência 5; revisar funções..."
-                          className="w-full min-h-[44px] rounded-xl border-2 border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                          placeholder="Ex: Boa evolução na Competência 5; revisar funções..."
+                          className="h-10 w-full rounded-md border border-line bg-surface px-3 text-xs text-ink"
                         />
                       </div>
                     </div>
                   </div>
                 );
               })}
-            </div>
-
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Dica: Você pode deixar em branco os alunos que faltaram no dia do simulado e lançar
-                a nota deles depois.
-              </p>
-
-              <Button
-                variant="primary"
-                size="lg"
-                disabled={hasValidationErrors}
-                leftIcon={<Save className="h-5 w-5" />}
-                onClick={handleSaveBatchGrades}
-              >
-                Salvar Notas em Lote
-              </Button>
             </div>
           </div>
         </Card>
@@ -465,8 +565,9 @@ export const TeacherAssessmentsPage: React.FC = () => {
       <Modal
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
+        isDirty={Boolean(newTitle.trim() || newDescription.trim())}
         title="Criar Nova Avaliação ou Simulado"
-        description="Defina o título, o tipo de atividade e a pontuação máxima (ex: 1000 para padrão ENEM ou 10 para lista de exercícios)."
+        description="Defina o título, o tipo de atividade e a pontuação máxima."
         footer={
           <>
             <Button variant="ghost" onClick={() => setIsNewModalOpen(false)}>

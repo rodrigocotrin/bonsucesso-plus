@@ -3,25 +3,27 @@ import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   CheckCircle2,
+  Download,
   Eye,
   FilePenLine,
-  GraduationCap,
+  Printer,
   UserPlus,
 } from 'lucide-react';
 import {
   Badge,
   Button,
-  Card,
   ConfirmDialog,
 } from '../../components/ui';
 import { DataTable, DataTableColumn } from '../../components/shared/DataTable';
+import { PrintReportHeader } from '../../components/shared/PrintReportHeader';
 import { useMockDatabase } from '../../contexts/MockDatabaseContext';
 import { useToast } from '../../contexts/ToastContext';
+import { exportToCsv, triggerPrintReport } from '../../lib/exportCsv';
+import { getDisplayName } from '../../lib/person';
 import { Person } from '../../types';
 import {
   calculateSimpleEnemAverage,
   formatEnemScore,
-  getDisplayName,
 } from '../../utils/formatters';
 import {
   EnrichedStudentRow,
@@ -47,7 +49,13 @@ export const CoordinatorStudentsPage: React.FC = () => {
     if (paramId) {
       setSelectedStudentId(paramId);
     }
-  }, [searchParams]);
+    if (searchParams.get('action') === 'new') {
+      setEditingStudentRow(null);
+      setIsFormModalOpen(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleOpenStudentDetail = (personId: string) => {
     setSelectedStudentId(personId);
@@ -147,16 +155,11 @@ export const CoordinatorStudentsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleOpenStudentDetail(row.person.id)}
-              className="text-left text-base font-extrabold text-primary-900 hover:underline dark:text-primary-300"
+              className="text-left text-sm font-semibold text-ink hover:underline"
             >
               {getDisplayName(row.person)}
             </button>
-            {row.person.socialName && (
-              <span className="block text-xs text-slate-500 dark:text-slate-400">
-                Nome civil: {row.person.fullName}
-              </span>
-            )}
-            <span className="block text-xs font-mono text-slate-600 dark:text-slate-400">
+            <span className="num block text-xs text-ink-muted">
               Matrícula: {row.enrollment?.enrollmentCode ?? 'BS-2026'} • CPF: {row.person.cpf}
             </span>
           </div>
@@ -167,7 +170,7 @@ export const CoordinatorStudentsPage: React.FC = () => {
         header: 'Turma',
         sortAccessor: (r) => r.classRoomName,
         renderCell: (row) => (
-          <span className="font-semibold text-slate-800 dark:text-slate-200">
+          <span className="font-semibold text-slate-800">
             {row.classRoomName}
           </span>
         ),
@@ -180,7 +183,7 @@ export const CoordinatorStudentsPage: React.FC = () => {
           const isLow = row.attendancePct < 75;
           return (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-extrabold text-slate-900 dark:text-white">
+              <span className="text-base font-extrabold text-slate-900">
                 {row.attendancePct}%
               </span>
               <Badge
@@ -204,7 +207,7 @@ export const CoordinatorStudentsPage: React.FC = () => {
         header: 'Média Simulados',
         sortAccessor: (r) => r.enemAvg,
         renderCell: (row) => (
-          <span className="font-extrabold text-secondary-800 dark:text-secondary-300">
+          <span className="font-extrabold text-secondary-800">
             {row.enemAvg > 0 ? formatEnemScore(row.enemAvg) : 'Sem nota'}
           </span>
         ),
@@ -245,8 +248,46 @@ export const CoordinatorStudentsPage: React.FC = () => {
     []
   );
 
+  const handleExportStudentsCsv = () => {
+    exportToCsv({
+      filename: 'bonsucesso-alunos',
+      headers: [
+        'Matrícula',
+        'Estudante (Nome Social / Exibição)',
+        'CPF',
+        'Turma',
+        'Frequência (%)',
+        'Média Simulados ENEM',
+        'Situação',
+        'E-mail',
+        'Telefone',
+      ],
+      rows: studentRows.map((row) => [
+        row.enrollment?.enrollmentCode ?? 'BS-2026',
+        getDisplayName(row.person),
+        row.person.cpf,
+        row.classRoomName,
+        `${row.attendancePct}%`,
+        row.enemAvg > 0 ? row.enemAvg : 'Sem nota',
+        row.person.status === 'active' ? 'Ativo' : 'Inativo',
+        row.person.email,
+        row.person.phone,
+      ]),
+    });
+    showToast({
+      variant: 'success',
+      title: 'CSV exportado com sucesso',
+      description: 'Arquivo bonsucesso-alunos.csv compatível com Excel (UTF-8 BOM).',
+    });
+  };
+
   return (
     <div className="space-y-8">
+      <PrintReportHeader
+        title="Relatório Geral de Alunos, Frequência e Desempenho"
+        subtitle={`Total de ${studentRows.length} estudantes registrados`}
+      />
+
       {selectedStudentRow ? (
         <StudentProfileTabsView
           studentRow={selectedStudentRow}
@@ -256,69 +297,71 @@ export const CoordinatorStudentsPage: React.FC = () => {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <Badge variant="primary" icon={<GraduationCap className="h-4 w-4" />}>
-                Gestão Acadêmica • Alunos e Matrículas (UC03 a UC06, UC23)
-              </Badge>
-              <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                Gestão de Alunos
-              </h1>
-              <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-                Consulte todos os estudantes do cursinho, filtre por turma ou situação e clique
-                sobre qualquer nome para abrir a ficha acadêmica completa em abas.
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h1>Alunos</h1>
 
-            <Button
-              variant="primary"
-              size="lg"
-              leftIcon={<UserPlus className="h-5 w-5" />}
-              onClick={handleOpenCreateModal}
-            >
-              Cadastrar Aluno
-            </Button>
+            <div className="no-print flex flex-wrap items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<Download className="h-4 w-4" />}
+                onClick={handleExportStudentsCsv}
+              >
+                Exportar CSV
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<Printer className="h-4 w-4" />}
+                onClick={triggerPrintReport}
+              >
+                Imprimir
+              </Button>
+              <Button
+                variant="primary"
+                leftIcon={<UserPlus className="h-4 w-4" />}
+                onClick={handleOpenCreateModal}
+              >
+                Novo Aluno
+              </Button>
+            </div>
           </div>
 
-          <Card
-            title="Relação de Estudantes do Cursinho Comunitário Bonsucesso"
-            subtitle="Clique nos títulos das colunas para ordenar por Nome, Turma, Frequência ou Média ENEM."
-          >
-            <DataTable
-              data={studentRows}
-              columns={columns}
-              getRowKey={(r) => r.person.id}
-              searchLabel="Buscar aluno por Nome, Nome Social, Matrícula ou CPF"
-              searchPlaceholder="Ex: Mariana, BS-2026-001, 401.501..."
-              searchPredicate={(row, q) =>
-                row.person.fullName.toLowerCase().includes(q) ||
-                (row.person.socialName?.toLowerCase().includes(q) ?? false) ||
-                row.person.cpf.toLowerCase().includes(q) ||
-                (row.enrollment?.enrollmentCode.toLowerCase().includes(q) ?? false)
-              }
-              filters={[
-                {
-                  id: 'classRoom',
-                  label: 'Filtrar por Turma',
-                  options: [
-                    { value: 'all', label: 'Todas as Turmas' },
-                    ...db.classRooms.map((c) => ({ value: c.id, label: c.name })),
-                  ],
-                  predicate: (row, val) => row.classRoomId === val,
-                },
-                {
-                  id: 'status',
-                  label: 'Situação do Aluno',
-                  options: [
-                    { value: 'all', label: 'Todos (Ativos e Inativos)' },
-                    { value: 'active', label: 'Somente Ativos' },
-                    { value: 'inactive', label: 'Somente Inativos / Trancados' },
-                  ],
-                  predicate: (row, val) => row.person.status === val,
-                },
-              ]}
-            />
-          </Card>
+          <DataTable
+            data={studentRows}
+            columns={columns}
+            getRowKey={(r) => r.person.id}
+            onRowClick={(r) => handleOpenStudentDetail(r.person.id)}
+            searchLabel="Pesquisar"
+            searchPlaceholder="Nome, matrícula ou CPF..."
+            searchPredicate={(row, q) =>
+              row.person.fullName.toLowerCase().includes(q) ||
+              (row.person.socialName?.toLowerCase().includes(q) ?? false) ||
+              row.person.cpf.toLowerCase().includes(q) ||
+              (row.enrollment?.enrollmentCode.toLowerCase().includes(q) ?? false)
+            }
+            filters={[
+              {
+                id: 'classRoom',
+                label: 'Turma',
+                options: [
+                  { value: 'all', label: 'Todas as Turmas' },
+                  ...db.classRooms.map((c) => ({ value: c.id, label: c.name })),
+                ],
+                predicate: (row, val) => row.classRoomId === val,
+              },
+              {
+                id: 'status',
+                label: 'Situação',
+                options: [
+                  { value: 'all', label: 'Todos' },
+                  { value: 'active', label: 'Ativos' },
+                  { value: 'inactive', label: 'Inativos' },
+                ],
+                predicate: (row, val) => row.person.status === val,
+              },
+            ]}
+          />
         </>
       )}
 

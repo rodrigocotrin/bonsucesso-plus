@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   Bell,
   CheckCircle2,
-  Eye,
+  Monitor,
+  Moon,
   RotateCcw,
-  Settings,
+  Sun,
 } from 'lucide-react';
 import {
   Badge,
@@ -12,103 +14,179 @@ import {
   Card,
 } from '../components/ui';
 import { AccessibilityToolbar } from '../components/shared/AccessibilityToolbar';
-import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useAccessibility, useTheme } from '../contexts/AccessibilityContext';
 import { useToast } from '../contexts/ToastContext';
+import { SPRINGS } from '../lib/motion';
+import { ThemeMode } from '../types';
+import { cn } from '../utils/formatters';
 
-/**
- * Página compartilhada "Configurações" para todos os perfis.
- * Concentra preferências de Acessibilidade (Tamanho da Letra e Modo Claro/Escuro)
- * e preferências gerais de notificações/avisos.
- */
+const THEME_OPTIONS: Array<{
+  value: ThemeMode;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+}> = [
+  {
+    value: 'light',
+    label: 'Claro',
+    description: 'Papel quente (#FAF9F6)',
+    icon: <Sun className="h-4 w-4" aria-hidden="true" />,
+  },
+  {
+    value: 'dark',
+    label: 'Escuro',
+    description: 'Quadro-Negro Suíço (#0C0D10)',
+    icon: <Moon className="h-4 w-4" aria-hidden="true" />,
+  },
+  {
+    value: 'system',
+    label: 'Sistema',
+    description: 'Segue o dispositivo',
+    icon: <Monitor className="h-4 w-4" aria-hidden="true" />,
+  },
+];
+
 export const SettingsPage: React.FC = () => {
-  const { theme, fontScale, setTheme, setFontScale } = useAccessibility();
+  const { fontScale, setFontScale } = useAccessibility();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const { showToast } = useToast();
 
   const [notifySimulados, setNotifySimulados] = useState(true);
   const [notifyAttendanceAlerts, setNotifyAttendanceAlerts] = useState(true);
   const [notifyEvents, setNotifyEvents] = useState(true);
 
+  const handleSelectTheme = (nextTheme: ThemeMode) => {
+    if (nextTheme === theme) return;
+    setTheme(nextTheme);
+    const option = THEME_OPTIONS.find((opt) => opt.value === nextTheme);
+    showToast({
+      variant: 'info',
+      title: `Aparência: ${option?.label ?? nextTheme}`,
+    });
+  };
+
   const handleRestoreDefaults = () => {
-    setTheme('light');
+    setTheme('system');
     setFontScale('normal');
     setNotifySimulados(true);
     setNotifyAttendanceAlerts(true);
     setNotifyEvents(true);
     showToast({
       variant: 'success',
-      title: 'Configurações restauradas para o padrão',
-      description: 'Tema Claro e Tamanho da Letra Normal (16px) aplicados.',
+      title: 'Configurações restauradas',
+      description: 'Aparência do Sistema e escala padrão (100%) aplicadas.',
     });
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <header className="space-y-2">
-        <Badge variant="primary" icon={<Settings className="h-4 w-4" />}>
-          Preferências Gerais do Portal
-        </Badge>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Configurações
-        </h1>
-        <p className="text-base text-slate-600 dark:text-slate-300">
-          Personalize o tamanho da letra, o contraste de cores e quais avisos você prefere receber.
-          Todas as escolhas ficam salvas automaticamente neste aparelho.
-        </p>
-      </header>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <h1>Configurações</h1>
 
-      {/* 1. Aparência e Leitura (Acessibilidade) */}
+      {/* 1. Aparência (Segmented Control com layoutId: Claro | Escuro | Sistema) */}
       <Card
         as="section"
-        title="Aparência, Contraste e Tamanho da Letra"
-        subtitle="Escolha o tamanho de texto mais confortável para seus olhos e alterne entre Modo Claro ou Modo Escuro."
+        title="Aparência"
         headerAction={
-          <Badge variant="neutral" icon={<Eye className="h-4 w-4" />}>
-            {theme === 'light' ? 'Modo Claro' : 'Modo Escuro'} •{' '}
-            {fontScale === 'normal'
-              ? 'Letra Normal'
-              : fontScale === 'large'
-              ? 'Letra Grande'
-              : 'Letra Extra Grande'}
+          <Badge variant={resolvedTheme === 'dark' ? 'academic' : 'neutral'}>
+            {resolvedTheme === 'dark' ? 'Escuro ativo' : 'Claro ativo'}
           </Badge>
         }
       >
-        <div className="space-y-5">
-          <AccessibilityToolbar />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-ink">Tema da Interface</p>
+            <p className="text-xs text-ink-muted">
+              Alterne entre Papel Quente, Quadro-Negro Suíço ou sincronize com o sistema.
+            </p>
+          </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300">
-            <strong>Exemplo de leitura atual:</strong> "O Cursinho Comunitário Bonsucesso acredita
-            que a educação transforma vidas. Você pode testar os botões acima e ver o texto crescer
-            imediatamente em todo o site."
+          <div
+            role="radiogroup"
+            aria-label="Tema da interface"
+            className="inline-flex items-center gap-1 rounded-md bg-track p-1"
+          >
+            {THEME_OPTIONS.map((opt) => {
+              const isSelected = theme === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => handleSelectTheme(opt.value)}
+                  title={opt.description}
+                  className={cn(
+                    'relative inline-flex h-9 items-center gap-2 rounded px-3.5 text-xs transition-colors duration-150 active:scale-[0.98]',
+                    isSelected
+                      ? 'font-semibold text-ink'
+                      : 'font-medium text-ink-muted hover:text-ink'
+                  )}
+                >
+                  {isSelected && (
+                    <motion.span
+                      layoutId="settings-appearance-theme-pill"
+                      transition={SPRINGS.indicator}
+                      className="absolute inset-0 rounded bg-surface shadow-xs"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    {opt.icon}
+                    <span>{opt.label}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </Card>
 
-      {/* 2. Preferências de Notificações e Avisos */}
+      {/* 2. Tamanho do Texto (Acessibilidade Tipográfica) */}
       <Card
         as="section"
-        title="Preferências de Avisos e Lembretes"
-        subtitle="Escolha quais tipos de comunicados você deseja destacar no portal."
+        title="Tamanho do Texto"
+        headerAction={
+          <Badge variant="neutral">
+            {fontScale === 'normal'
+              ? '100%'
+              : fontScale === 'large'
+              ? '112%'
+              : '125%'}
+          </Badge>
+        }
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
+          <AccessibilityToolbar />
+
+          <div className="rounded-md bg-subtle p-4 text-sm text-ink">
+            <strong>Exemplo de leitura:</strong> &ldquo;O Cursinho Comunitário Bonsucesso acredita
+            que a educação transforma vidas.&rdquo;
+          </div>
+        </div>
+      </Card>
+
+      {/* 3. Preferências de Notificações e Avisos (Lista horizontal limpa sem box-ception) */}
+      <Card as="section" title="Avisos e Lembretes">
+        <div className="divide-y divide-line">
           {[
             {
               id: 'notif-simulados',
-              title: 'Lembretes de Simulados ENEM e Abertura de Notas',
-              description: 'Avisar quando um simulado estiver chegando ou quando o resultado sair.',
+              title: 'Simulados ENEM e Abertura de Notas',
+              description: 'Destacar prazos de simulados e publicação de resultados.',
               checked: notifySimulados,
               onToggle: () => setNotifySimulados((v) => !v),
             },
             {
               id: 'notif-attendance',
-              title: 'Alertas Preventivos de Frequência (abaixo de 75%)',
-              description: 'Mostrar aviso acolhedor caso a presença nas aulas fique próxima do limite.',
+              title: 'Alertas Preventivos de Frequência (< 75%)',
+              description: 'Exibir aviso preventivo quando a presença se aproximar do limite.',
               checked: notifyAttendanceAlerts,
               onToggle: () => setNotifyAttendanceAlerts((v) => !v),
             },
             {
               id: 'notif-events',
-              title: 'Reuniões de Famílias, Aulões Especiais e Feriados',
-              description: 'Destacar eventos presenciais e alterações no calendário do cursinho.',
+              title: 'Reuniões, Aulões e Calendário',
+              description: 'Destacar eventos presenciais e comunicados da coordenação.',
               checked: notifyEvents,
               onToggle: () => setNotifyEvents((v) => !v),
             },
@@ -116,18 +194,18 @@ export const SettingsPage: React.FC = () => {
             <label
               key={pref.id}
               htmlFor={pref.id}
-              className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border-2 border-slate-200 bg-slate-50/60 p-4 hover:border-primary-500 dark:border-slate-800 dark:bg-slate-950/50 transition-colors"
+              className="flex cursor-pointer items-center justify-between gap-4 py-3.5 transition-colors duration-150 first:pt-0 last:pb-0"
             >
               <div className="flex items-start gap-3">
                 <Bell
-                  className="h-5 w-5 text-primary-700 dark:text-primary-400 shrink-0 mt-0.5"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted"
                   aria-hidden="true"
                 />
                 <div>
-                  <span className="block text-base font-bold text-slate-900 dark:text-white">
+                  <span className="block text-sm font-medium text-ink">
                     {pref.title}
                   </span>
-                  <span className="block text-sm text-slate-600 dark:text-slate-300 mt-0.5">
+                  <span className="mt-0.5 block text-xs text-ink-muted">
                     {pref.description}
                   </span>
                 </div>
@@ -141,41 +219,36 @@ export const SettingsPage: React.FC = () => {
                   pref.onToggle();
                   showToast({
                     variant: 'info',
-                    title: 'Preferência de aviso atualizada',
-                    description: 'Sua escolha foi salva com sucesso.',
+                    title: 'Preferência atualizada',
                   });
                 }}
-                className="mt-1 h-6 w-6 shrink-0 rounded accent-primary-700 cursor-pointer"
+                className="h-4 w-4 shrink-0 cursor-pointer rounded accent-academic"
               />
             </label>
           ))}
         </div>
       </Card>
 
-      {/* 3. Restaurar Padrões */}
-      <Card
-        as="section"
-        title="Restaurar Padrões de Fábrica"
-        subtitle="Volta o tamanho da letra para o padrão (16px) e o tema para Modo Claro."
-      >
+      {/* 4. Restaurar Padrões */}
+      <Card as="section" title="Padrões do Sistema">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300 max-w-xl">
-            Se você alterou o tamanho da letra ou as cores e deseja voltar ao visual padrão do
-            IntegraCurso, clique no botão ao lado.
+          <p className="text-xs text-ink-muted">
+            Restaura o tema para Sistema e a escala de texto para 100% (16px).
           </p>
           <Button
-            variant="ghost"
+            variant="secondary"
+            size="sm"
             leftIcon={<RotateCcw className="h-4 w-4" />}
             onClick={handleRestoreDefaults}
           >
-            Restaurar Configurações Padrão
+            Restaurar Padrões
           </Button>
         </div>
       </Card>
 
-      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <CheckCircle2 className="h-4 w-4 text-primary-700 dark:text-primary-400 shrink-0" aria-hidden="true" />
-        <span>Suas preferências são aplicadas instantaneamente em todas as telas do seu perfil.</span>
+      <div className="flex items-center gap-2 text-xs text-ink-muted">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-progress" aria-hidden="true" />
+        <span>Preferências salvas automaticamente neste navegador.</span>
       </div>
     </div>
   );

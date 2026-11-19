@@ -6,7 +6,6 @@ import {
   Clock,
   GraduationCap,
   MapPin,
-  Megaphone,
   RefreshCw,
   Sparkles,
   User,
@@ -15,7 +14,6 @@ import {
   Badge,
   BadgeVariant,
   Button,
-  Card,
   EmptyState,
 } from '../../components/ui';
 import { useMockDatabase } from '../../contexts/MockDatabaseContext';
@@ -133,30 +131,14 @@ export const StudentEventsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div>
-        <Badge variant="primary" icon={<Megaphone className="h-4 w-4" />}>
-          Mural Comunitário & Agenda ENEM
-        </Badge>
-        <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Eventos Presenciais e Avisos da Coordenação
-        </h1>
-        <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-          Fique por dentro dos comunicados da equipe pedagógica, datas dos simulados presenciais,
-          aulões de sábado, visitas à universidade e feriados.
-        </p>
-      </div>
+      {/* Cabeçalho enxuto + Segmented Control Suave (Regra 1 e 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Calendário</h1>
 
-      {/* Filtros por Categoria */}
-      <Card
-        as="section"
-        title="Filtrar por Categoria"
-        subtitle="Selecione o tipo de comunicado ou evento presencial que deseja visualizar."
-      >
         <div
           role="group"
-          aria-label="Filtrar eventos e avisos por categoria"
-          className="flex flex-wrap gap-2"
+          aria-label="Filtrar eventos por categoria"
+          className="flex flex-wrap gap-1 rounded-md bg-track p-1"
         >
           {CATEGORY_FILTER_OPTIONS.map((option) => {
             const isActive = selectedCategory === option.value;
@@ -166,10 +148,10 @@ export const StudentEventsPage: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedCategory(option.value)}
                 aria-pressed={isActive}
-                className={`min-h-[44px] rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all ${
+                className={`h-8 rounded px-2.5 text-xs transition-colors ${
                   isActive
-                    ? 'border-primary-700 bg-primary-700 text-white shadow-xs dark:border-primary-500 dark:bg-primary-600'
-                    : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-surface font-semibold text-ink shadow-xs'
+                    : 'font-medium text-ink-muted hover:text-ink'
                 }`}
               >
                 {option.label}
@@ -177,7 +159,7 @@ export const StudentEventsPage: React.FC = () => {
             );
           })}
         </div>
-      </Card>
+      </div>
 
       {/* Feed Cronológico de Comunicados e Eventos */}
       {filteredFeed.length > 0 ? (
@@ -189,8 +171,8 @@ export const StudentEventsPage: React.FC = () => {
                 key={item.id}
                 className={`rounded-2xl border-2 p-5 sm:p-6 transition-all ${
                   isUnreadNew
-                    ? 'border-primary-600 bg-primary-50/40 shadow-sm dark:border-primary-500 dark:bg-primary-950/30'
-                    : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+                    ? 'border-primary-600 bg-primary-50/40 shadow-sm'
+                    : 'border-slate-200 bg-white'
                 }`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -215,37 +197,37 @@ export const StudentEventsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-300">
-                    <Calendar className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                  <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-700">
+                    <Calendar className="h-4 w-4 text-primary-700" aria-hidden="true" />
                     <span>Data: {formatDateBR(item.date)}</span>
                   </span>
                 </div>
 
-                <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                <h2 className="text-xl font-extrabold text-slate-900">
                   {item.title}
                 </h2>
 
-                <p className="mt-2 text-base text-slate-700 dark:text-slate-200 leading-relaxed">
+                <p className="mt-2 text-base text-slate-700 leading-relaxed">
                   {item.summary}
                 </p>
 
-                <div className="mt-4 pt-4 border-t border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-300">
+                <div className="mt-4 pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
                     <span className="inline-flex items-center gap-1.5 font-medium">
-                      <User className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                      <User className="h-4 w-4 text-primary-700" aria-hidden="true" />
                       <span>{item.author}</span>
                     </span>
 
                     {item.timeRange && (
                       <span className="inline-flex items-center gap-1.5 font-semibold">
-                        <Clock className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                        <Clock className="h-4 w-4 text-primary-700" aria-hidden="true" />
                         <span>{item.timeRange}</span>
                       </span>
                     )}
 
                     {item.location && (
                       <span className="inline-flex items-center gap-1.5 font-semibold">
-                        <MapPin className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                        <MapPin className="h-4 w-4 text-primary-700" aria-hidden="true" />
                         <span>{item.location}</span>
                       </span>
                     )}

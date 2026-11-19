@@ -4,13 +4,7 @@ import {
   ArrowRight,
   Award,
   BookOpen,
-  Calendar,
-  CalendarCheck,
-  FilePenLine,
-  GraduationCap,
   HeartHandshake,
-  Lightbulb,
-  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 import {
@@ -245,123 +239,88 @@ export const StudentPerformancePage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho + Seletor de Período Letivo */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <Badge variant="primary" icon={<Sparkles className="h-4 w-4" />}>
-            Seu Progresso Importa • Escala Oficial ENEM (0 a 1.000)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Meu Desempenho e Evolução
-          </h1>
-          <p className="mt-1 max-w-2xl text-base text-slate-600 dark:text-slate-300">
-            Cada simulado é uma oportunidade de descobrir seus pontos fortes e planejar o próximo
-            passo de estudo com calma.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto + Seletor de Período alinhado pela base (Regra 2) */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1>Meu Desempenho</h1>
 
-        <div className="w-full md:w-72 shrink-0">
+        <div className="w-60">
           <Select
-            label="Período Letivo"
+            label="Período"
             value={selectedPeriodId}
             onChange={(e) => setSelectedPeriodId(e.target.value)}
-            leftIcon={<Calendar className="h-5 w-5" />}
             options={db.academicPeriods.map((period) => ({
               value: period.id,
-              label: period.isCurrent ? `${period.name} (Atual)` : period.name,
+              label: period.name,
             }))}
           />
         </div>
       </div>
 
-      {/* 1. OS 3 KPI CARDS (Média no Último Simulado + Nota de Redação + Frequência Atual) */}
-      <section aria-label="Indicadores principais de desempenho">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      {/* 1. OS 3 KPI CARDS ULTRA-LIMPOS (Regra 2) */}
+      <section aria-label="Indicadores principais">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <MetricCard
-            title="Média no Último Simulado"
+            title="Último Simulado ENEM"
             value={latestOverallScore}
             scale="enem"
-            accentColor="secondary"
-            icon={<GraduationCap className="h-6 w-6" />}
+            accentColor="assess"
             trend={{
               direction: deltaFromPrevious >= 0 ? 'up' : 'down',
-              label: `${deltaFromPrevious >= 0 ? '+' : ''}${deltaFromPrevious} pts vs. anterior (+${deltaFromFirst} pts no semestre)`,
+              label: `${deltaFromPrevious >= 0 ? '+' : ''}${deltaFromPrevious} pts vs. anterior`,
               variant: deltaFromPrevious >= 0 ? 'success' : 'warning',
             }}
-            subtitle="Média simples das 5 áreas do ENEM na escala de 0 a 1.000 pontos."
           />
 
           <MetricCard
             title="Nota de Redação"
             value={latestRedacaoScore}
             scale="enem"
-            accentColor="primary"
-            icon={<FilePenLine className="h-6 w-6" />}
-            statusBadge={{
-              label: 'Destaque pessoal',
-              variant: 'success',
-            }}
+            accentColor="academic"
             trend={{
               direction: redacaoDelta >= 0 ? 'up' : 'down',
               label: `${redacaoDelta >= 0 ? '+' : ''}${redacaoDelta} pts na última correção`,
               variant: 'success',
             }}
-            subtitle="Avaliada nas 5 competências oficiais do ENEM (máximo 1.000 pts)."
           />
 
           <MetricCard
-            title="Frequência Atual"
+            title="Frequência Acumulada"
             value={attendancePercentage}
             scale="percentage"
-            accentColor={attendanceEval.status === 'critical' ? 'danger' : 'success'}
-            icon={<CalendarCheck className="h-6 w-6" />}
+            accentColor={attendanceEval.status === 'critical' ? 'critical' : 'progress'}
             statusBadge={{
-              label: attendanceEval.label,
+              label: `${totalPresences} presenças • ${totalAbsences} faltas`,
               variant: attendanceEval.status === 'critical' ? 'danger' : 'success',
             }}
-            subtitle={
-              selectedPeriodId === 'per-2026-1'
-                ? '72 presenças e 8 faltas registradas no 1º semestre.'
-                : `${totalPresences} presenças e ${totalAbsences} faltas nas últimas aulas registradas.`
-            }
           />
         </div>
       </section>
 
-      {/* 2. CARD DE RECOMENDAÇÃO PEDAGÓGICA DINÂMICA (Baseado nas 2 áreas de menor pontuação) */}
+      {/* 2. CARD DE RECOMENDAÇÃO PEDAGÓGICA (Borda neutra, sem caixa pesada) */}
       <Card
         as="section"
-        className="border-2 border-primary-600 bg-primary-50/40 dark:border-primary-500 dark:bg-primary-950/30"
-        title="Recomendação Pedagógica Personalizada para Você"
-        subtitle="Gerada automaticamente com base nas duas áreas em que você tem mais espaço para crescer no próximo simulado."
-        headerAction={
-          <Badge variant="primary" icon={<Lightbulb className="h-4 w-4" />}>
-            Próximo Passo de Estudo
-          </Badge>
-        }
+        title="Recomendação da Semana"
+        headerAction={<Badge variant="academic">Foco de Estudo</Badge>}
       >
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2 max-w-3xl">
-            <p className="text-base text-slate-800 dark:text-slate-100 leading-relaxed">
-              Seu desempenho em <strong>Redação ({formatEnemScore(latestRedacaoScore)})</strong> e{' '}
-              <strong>Ciências Humanas</strong> está muito sólido! Para elevar ainda mais sua média
-              geral no ENEM, recomendamos dedicar 2 blocos de revisão nesta semana para as suas duas
-              áreas com menor pontuação atual:
+            <p className="text-sm text-ink">
+              Priorize 2 blocos de revisão nesta semana nas áreas com maior margem de evolução:
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               {twoLowestAreas.map((area, index) => (
                 <div
                   key={area.key}
-                  className="rounded-xl border border-primary-300 bg-white p-3.5 dark:border-primary-800 dark:bg-slate-900"
+                  className="rounded-xl border border-primary-300 bg-white p-3.5"
                 >
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-primary-800 dark:text-primary-300">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-primary-800">
                     Prioridade {index + 1} • {formatEnemScore(area.score)}
                   </span>
-                  <p className="mt-0.5 text-base font-bold text-slate-900 dark:text-white">
+                  <p className="mt-0.5 text-base font-bold text-slate-900">
                     {area.label}
                   </p>
-                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  <p className="mt-1 text-xs text-slate-600">
                     Foco sugerido: resolver listas comentadas das questões fáceis e médias de{' '}
                     <strong>{area.recommendedSubjectFilter}</strong>.
                   </p>
@@ -375,7 +334,7 @@ export const StudentPerformancePage: React.FC = () => {
               to={`/aluno/materias?disciplina=${encodeURIComponent(
                 twoLowestAreas[0]?.recommendedSubjectFilter ?? 'Matemática'
               )}`}
-              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-base font-bold text-white shadow-xs hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-500 transition-colors"
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-base font-bold text-white shadow-xs hover:bg-primary-800 transition-colors"
             >
               <BookOpen className="h-5 w-5" aria-hidden="true" />
               <span>
@@ -387,7 +346,7 @@ export const StudentPerformancePage: React.FC = () => {
 
             <Link
               to="/aluno/materias"
-              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100"
             >
               <span>Ver todos os materiais de revisão</span>
             </Link>
@@ -426,7 +385,7 @@ export const StudentPerformancePage: React.FC = () => {
                       x2={580}
                       y2={y}
                       stroke="currentColor"
-                      className="text-slate-200 dark:text-slate-800"
+                      className="text-slate-200"
                       strokeDasharray={refScore === 750 ? '4 4' : undefined}
                       strokeWidth={1.5}
                     />
@@ -434,7 +393,7 @@ export const StudentPerformancePage: React.FC = () => {
                       x={52}
                       y={y + 4}
                       textAnchor="end"
-                      className="fill-slate-500 dark:fill-slate-400 text-[11px] font-semibold"
+                      className="fill-slate-500 text-[11px] font-semibold"
                     >
                       {refScore}
                     </text>
@@ -446,7 +405,7 @@ export const StudentPerformancePage: React.FC = () => {
               {chartPoints.length > 1 && (
                 <polyline
                   fill="none"
-                  stroke="#0f766e"
+                  stroke="var(--progress-fg)"
                   strokeWidth={4}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -469,7 +428,7 @@ export const StudentPerformancePage: React.FC = () => {
                       cx={pt.x}
                       cy={pt.y}
                       r={isHovered ? 9 : 7}
-                      className="fill-primary-700 stroke-white dark:fill-primary-400 dark:stroke-slate-900"
+                      className="fill-primary-700 stroke-white"
                       strokeWidth={3}
                     />
                     {/* Rótulo da Nota acima do ponto */}
@@ -479,13 +438,13 @@ export const StudentPerformancePage: React.FC = () => {
                       width={68}
                       height={22}
                       rx={6}
-                      className="fill-slate-900 dark:fill-slate-100"
+                      className="fill-slate-900"
                     />
                     <text
                       x={pt.x}
                       y={pt.y - 19}
                       textAnchor="middle"
-                      className="fill-white dark:fill-slate-900 text-[12px] font-extrabold"
+                      className="fill-white text-[12px] font-extrabold"
                     >
                       {pt.score} pts
                     </text>
@@ -495,7 +454,7 @@ export const StudentPerformancePage: React.FC = () => {
                       x={pt.x}
                       y={205}
                       textAnchor="middle"
-                      className="fill-slate-800 dark:fill-slate-200 text-[12px] font-bold"
+                      className="fill-slate-800 text-[12px] font-bold"
                     >
                       {pt.shortLabel}
                     </text>
@@ -503,7 +462,7 @@ export const StudentPerformancePage: React.FC = () => {
                       x={pt.x}
                       y={220}
                       textAnchor="middle"
-                      className="fill-slate-500 dark:fill-slate-400 text-[10px]"
+                      className="fill-slate-500 text-[10px]"
                     >
                       {pt.date}
                     </text>
@@ -514,12 +473,12 @@ export const StudentPerformancePage: React.FC = () => {
           </div>
 
           {/* Tabela Resumo Acessível do Gráfico (WCAG 2.1) */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">
                 Tabela acessível com as notas de cada simulado realizado
               </caption>
-              <thead className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+              <thead className="bg-slate-100 text-slate-800">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-bold">
                     Simulado
@@ -535,22 +494,22 @@ export const StudentPerformancePage: React.FC = () => {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-200">
                 {studentSimuladosHistory.map(({ assessment, grade }) => (
                   <tr
                     key={grade.id}
-                    className="bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/60"
+                    className="bg-white hover:bg-slate-50"
                   >
-                    <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
+                    <td className="px-4 py-3 font-bold text-slate-900">
                       {assessment.title}
                     </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                    <td className="px-4 py-3 text-slate-600">
                       {formatDateBR(assessment.date)}
                     </td>
-                    <td className="px-4 py-3 font-extrabold text-primary-800 dark:text-primary-300">
+                    <td className="px-4 py-3 font-extrabold text-primary-800">
                       {formatEnemScore(grade.score)}
                     </td>
-                    <td className="px-4 py-3 font-bold text-secondary-800 dark:text-secondary-300">
+                    <td className="px-4 py-3 font-bold text-secondary-800">
                       {formatEnemScore(grade.areaScores?.redacao ?? 0)}
                     </td>
                   </tr>
@@ -581,14 +540,14 @@ export const StudentPerformancePage: React.FC = () => {
                 return (
                   <div
                     key={area.key}
-                    className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50"
+                    className="rounded-xl border border-slate-200 bg-slate-50/70 p-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <span className="text-base font-bold text-slate-900 dark:text-white">
+                      <span className="text-base font-bold text-slate-900">
                         {area.label}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-extrabold text-slate-900 dark:text-white">
+                        <span className="text-lg font-extrabold text-slate-900">
                           {formatEnemScore(area.score)}
                         </span>
                         {areaDelta !== 0 && (
@@ -605,10 +564,10 @@ export const StudentPerformancePage: React.FC = () => {
                       aria-valuenow={area.score}
                       aria-valuemin={0}
                       aria-valuemax={1000}
-                      className="h-3.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+                      className="h-3.5 w-full overflow-hidden rounded-full bg-slate-200"
                     >
                       <div
-                        className="h-full rounded-full bg-secondary-700 dark:bg-secondary-500 transition-all duration-300"
+                        className="h-full rounded-full bg-secondary-700 transition-all duration-300"
                         style={{ width: `${widthPercent}%` }}
                       />
                     </div>
@@ -630,10 +589,10 @@ export const StudentPerformancePage: React.FC = () => {
               {[...studentSimuladosHistory].reverse().map(({ assessment, grade }) => (
                 <div
                   key={grade.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50 space-y-2"
+                  className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-2"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-primary-800 dark:text-primary-300">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-primary-800">
                       {formatDateBR(assessment.date)}
                     </span>
                     <Badge variant="secondary" icon={<Award className="h-4 w-4" />}>
@@ -641,12 +600,12 @@ export const StudentPerformancePage: React.FC = () => {
                     </Badge>
                   </div>
 
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                  <h4 className="text-base font-bold text-slate-900">
                     {assessment.title}
                   </h4>
 
                   {grade.feedback && (
-                    <p className="text-sm text-slate-700 dark:text-slate-300 italic bg-white p-3 rounded-lg border border-slate-200/80 dark:bg-slate-900 dark:border-slate-800">
+                    <p className="text-sm text-slate-700 italic bg-white p-3 rounded-lg border border-slate-200/80">
                       "{grade.feedback}"
                     </p>
                   )}
@@ -682,8 +641,8 @@ export const StudentPerformancePage: React.FC = () => {
             defaultThreshold={75}
           />
 
-          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 pt-1">
-            <HeartHandshake className="h-4 w-4 text-primary-700 dark:text-primary-400 shrink-0" aria-hidden="true" />
+          <div className="flex items-center gap-2 text-xs text-slate-600 pt-1">
+            <HeartHandshake className="h-4 w-4 text-primary-700 shrink-0" aria-hidden="true" />
             <span>
               Faltou por motivo de saúde ou trabalho? Apresente sua justificativa na secretaria do
               Cursinho Bonsucesso para abono pedagógico.

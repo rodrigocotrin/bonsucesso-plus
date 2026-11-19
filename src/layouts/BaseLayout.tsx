@@ -1,57 +1,52 @@
 import React from 'react';
-import { BookHeart, HeartHandshake } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { BrandLockup } from '../components/ui';
 
 export interface BaseLayoutProps {
   children: React.ReactNode;
 }
 
 /**
- * Shell Base do IntegraCurso com cabeçalho institucional limpo e rodapé comunitário.
- * Os controles de Tema e Tamanho da Fonte ficarão concentrados na aba de Configurações do Perfil do usuário.
+ * Shell Base do Bonsucesso+ para páginas de documentação/catálogo (`/design-system`).
  */
 export const BaseLayout: React.FC<BaseLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      {/* Link de salto para acessibilidade via teclado */}
+    <div className="flex min-h-screen flex-col bg-paper text-ink">
       <a
         href="#conteudo-principal"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-xl focus:bg-primary-700 focus:px-4 focus:py-2.5 focus:text-white focus:font-bold"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
       >
         Ir direto para o conteúdo principal
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-xs dark:border-slate-800 dark:bg-slate-900/95">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-700 text-white shadow-xs dark:bg-primary-600"
-              aria-hidden="true"
-            >
-              <BookHeart className="h-6 w-6" />
-            </div>
-            <div>
-              <span className="text-xl font-extrabold tracking-tight text-primary-900 dark:text-primary-200">
-                IntegraCurso
-              </span>
-              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300">
-                Cursinho Popular Comunitário — Preparatório ENEM
-              </p>
-            </div>
-          </div>
+      <header className="sticky top-0 z-40 border-b border-line bg-surface">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link to="/">
+            <BrandLockup subtitle="Design System • Bauhaus Suíço (Regra 90/10)" />
+          </Link>
+
+          <Link
+            to="/"
+            className="inline-flex h-10 items-center gap-2 rounded border border-line bg-surface px-3 text-xs font-semibold text-ink hover:border-ink hover:bg-subtle"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span>Voltar ao AppShell</span>
+          </Link>
         </div>
       </header>
 
-      <main id="conteudo-principal" className="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main
+        id="conteudo-principal"
+        className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8"
+      >
         {children}
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-6 dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto flex max-w-7xl flex-col sm:flex-row items-center justify-between gap-4 px-4 text-sm text-slate-600 dark:text-slate-300 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 font-medium">
-            <HeartHandshake className="h-5 w-5 text-primary-700 dark:text-primary-400 shrink-0" aria-hidden="true" />
-            <span>IntegraCurso — Educação popular, gratuita e acolhedora para a nossa comunidade.</span>
-          </div>
-          <span>Acessibilidade WCAG 2.1 AA • Linguagem Cidadã</span>
+      <footer className="border-t border-line bg-surface py-4">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 text-xs text-ink-muted sm:flex-row sm:px-6 lg:px-8">
+          <span>Bonsucesso+ — Plataforma de Gestão Acadêmica e Comunitária</span>
+          <span className="num">Plus Jakarta Sans + JetBrains Mono • Grid 8px • WCAG AA/AAA</span>
         </div>
       </footer>
     </div>

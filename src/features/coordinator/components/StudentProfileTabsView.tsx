@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
-  Award,
-  CalendarCheck,
   FilePenLine,
-  FileText,
-  GraduationCap,
-  History,
   Power,
   RotateCcw,
-  Users,
 } from 'lucide-react';
 import {
   Badge,
@@ -19,8 +14,10 @@ import {
   ProgressBarGroup,
 } from '../../../components/ui';
 import { useMockDatabase } from '../../../contexts/MockDatabaseContext';
+import { SPRINGS, VARIANTS } from '../../../lib/motion';
 import { Enrollment, Person, Responsibility } from '../../../types';
 import {
+  cn,
   formatDateBR,
   formatEnemScore,
   getDisplayName,
@@ -52,9 +49,6 @@ export interface StudentProfileTabsViewProps {
   onToggleStatusRequest: (person: Person) => void;
 }
 
-/**
- * Subcomponente coeso (SRP): Ficha Acadêmica Detalhada do Aluno em 5 Abas (inspirada no SUAP).
- */
 export const StudentProfileTabsView: React.FC<StudentProfileTabsViewProps> = ({
   studentRow,
   onBack,
@@ -66,27 +60,29 @@ export const StudentProfileTabsView: React.FC<StudentProfileTabsViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Topo da Ficha: Voltar + Identificação + Ações de Editar e Inativar/Reativar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Button
           variant="ghost"
+          size="sm"
           onClick={onBack}
           leftIcon={<ArrowLeft className="h-4 w-4" />}
         >
-          Voltar para a Lista de Alunos
+          Voltar para Alunos
         </Button>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
-            variant="ghost"
+            variant="secondary"
+            size="sm"
             onClick={() => onEdit(studentRow)}
             leftIcon={<FilePenLine className="h-4 w-4" />}
           >
-            Editar Cadastro
+            Editar
           </Button>
 
           <Button
-            variant={studentRow.person.status === 'active' ? 'danger' : 'primary'}
+            variant={studentRow.person.status === 'active' ? 'danger' : 'secondary'}
+            size="sm"
             onClick={() => onToggleStatusRequest(studentRow.person)}
             leftIcon={
               studentRow.person.status === 'active' ? (
@@ -96,106 +92,73 @@ export const StudentProfileTabsView: React.FC<StudentProfileTabsViewProps> = ({
               )
             }
           >
-            {studentRow.person.status === 'active'
-              ? 'Inativar Aluno (Preservar Histórico)'
-              : 'Reativar Cadastro do Aluno'}
+            {studentRow.person.status === 'active' ? 'Inativar' : 'Reativar'}
           </Button>
         </div>
       </div>
 
-      {/* Cabeçalho Estilo SUAP do Perfil Acadêmico */}
-      <Card className="border-t-4 border-t-primary-700 dark:border-t-primary-500">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1.5">
+      {/* Cabeçalho Limpo da Ficha + Abas Minimalistas (Sem pills pretas e sem sub-caixas) */}
+      <Card noPadding>
+        <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant={
-                  studentRow.person.status === 'active' ? 'success' : 'neutral'
-                }
-              >
-                {studentRow.person.status === 'active'
-                  ? 'Cadastro Ativo'
-                  : 'Cadastro Inativo / Trancado'}
+              <Badge variant={studentRow.person.status === 'active' ? 'progress' : 'neutral'}>
+                {studentRow.person.status === 'active' ? 'Ativo' : 'Inativo'}
               </Badge>
-              <Badge variant="primary">{studentRow.classRoomName}</Badge>
-              <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-400">
-                Matrícula: {studentRow.enrollment?.enrollmentCode ?? 'BS-2026'}
+              <Badge variant="academic">{studentRow.classRoomName}</Badge>
+              <span className="font-mono text-xs text-ink-muted">
+                {studentRow.enrollment?.enrollmentCode ?? 'BS-2026'}
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+            <h1 className="text-xl font-bold text-ink">
               {getDisplayName(studentRow.person)}
             </h1>
 
-            {studentRow.person.socialName && (
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Nome de registro civil: <strong>{studentRow.person.fullName}</strong>
-              </p>
-            )}
-
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              CPF: <strong>{studentRow.person.cpf}</strong> • Telefone:{' '}
-              <strong>{studentRow.person.phone}</strong> • E-mail:{' '}
-              <strong>{studentRow.person.email}</strong>
+            <p className="text-xs text-ink-muted">
+              CPF <span className="font-mono">{studentRow.person.cpf}</span> •{' '}
+              <span className="font-mono">{studentRow.person.phone}</span> •{' '}
+              {studentRow.person.email}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-center dark:border-slate-800 dark:bg-slate-950">
-              <span className="block text-xs font-bold text-slate-500">Frequência</span>
+          <div className="flex items-center gap-6">
+            <div>
+              <span className="block text-xs text-ink-muted">Frequência</span>
               <span
-                className={`text-xl font-extrabold ${
-                  studentRow.attendancePct < 75
-                    ? 'text-danger-700 dark:text-red-400'
-                    : 'text-emerald-700 dark:text-emerald-400'
-                }`}
+                className={cn(
+                  'font-mono text-2xl font-semibold tabular-nums',
+                  studentRow.attendancePct < 75 ? 'text-critical' : 'text-ink'
+                )}
               >
                 {studentRow.attendancePct}%
               </span>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-center dark:border-slate-800 dark:bg-slate-950">
-              <span className="block text-xs font-bold text-slate-500">Média ENEM</span>
-              <span className="text-xl font-extrabold text-secondary-800 dark:text-secondary-300">
-                {studentRow.enemAvg > 0 ? formatEnemScore(studentRow.enemAvg) : '—'}
+            <div className="h-8 w-px bg-line" aria-hidden="true" />
+
+            <div>
+              <span className="block text-xs text-ink-muted">Média ENEM</span>
+              <span className="font-mono text-2xl font-semibold text-ink tabular-nums">
+                {studentRow.enemAvg > 0 ? studentRow.enemAvg : '—'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Barra de Abas do Perfil Acadêmico (5 Abas) */}
+        {/* Abas Horizontais Minimalistas (Regra 1) */}
         <div
           role="tablist"
-          aria-label="Abas da ficha acadêmica do estudante"
-          className="mt-6 flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-800"
+          aria-label="Abas da ficha acadêmica"
+          className="flex gap-6 overflow-x-auto border-t border-line px-5"
         >
           {(
             [
-              {
-                id: 'dados_pessoais',
-                label: '1. Dados Pessoais',
-                icon: <Users className="h-4 w-4" />,
-              },
-              {
-                id: 'matriculas',
-                label: '2. Matrículas',
-                icon: <FileText className="h-4 w-4" />,
-              },
-              {
-                id: 'frequencia',
-                label: '3. Frequência',
-                icon: <CalendarCheck className="h-4 w-4" />,
-              },
-              {
-                id: 'boletim_simulados',
-                label: '4. Boletim / Simulados',
-                icon: <GraduationCap className="h-4 w-4" />,
-              },
-              {
-                id: 'historico_ocorrencias',
-                label: '5. Histórico / Ocorrências',
-                icon: <History className="h-4 w-4" />,
-              },
+              { id: 'dados_pessoais', label: 'Dados Pessoais' },
+              { id: 'matriculas', label: 'Matrículas' },
+              { id: 'frequencia', label: 'Frequência' },
+              { id: 'boletim_simulados', label: 'Boletins' },
+              { id: 'historico_ocorrencias', label: 'Histórico' },
             ] as const
           ).map((tab) => {
             const isSelected = activeTab === tab.id;
@@ -206,160 +169,142 @@ export const StudentProfileTabsView: React.FC<StudentProfileTabsViewProps> = ({
                 role="tab"
                 aria-selected={isSelected}
                 onClick={() => setActiveTab(tab.id)}
-                className={`min-h-[44px] inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-extrabold transition-all ${
+                className={cn(
+                  'relative inline-flex h-10 shrink-0 items-center text-sm transition-colors duration-150',
                   isSelected
-                    ? 'bg-primary-700 text-white shadow-xs dark:bg-primary-600'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
-                }`}
+                    ? 'font-semibold text-ink'
+                    : 'font-medium text-ink-muted hover:text-ink'
+                )}
               >
-                <span aria-hidden="true">{tab.icon}</span>
                 <span>{tab.label}</span>
+                {isSelected && (
+                  <motion.span
+                    layoutId="student-profile-tab-underline"
+                    transition={SPRINGS.indicator}
+                    className="absolute inset-x-0 bottom-0 h-0.5 bg-ink"
+                    aria-hidden="true"
+                  />
+                )}
               </button>
             );
           })}
         </div>
       </Card>
 
-      {/* CONTEÚDO DA ABA 1: DADOS PESSOAIS */}
-      {activeTab === 'dados_pessoais' && (
-        <Card
-          title="Dados Pessoais, Contato e Vínculo Familiar"
-          subtitle="Informações cadastrais completas do(a) estudante no Cursinho Comunitário Bonsucesso."
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={activeTab}
+          variants={VARIANTS.page}
+          initial="initial"
+          animate="animate"
+          exit="exit"
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-500">Nome Completo</span>
-              <p className="mt-1 font-extrabold text-slate-900 dark:text-white">
-                {studentRow.person.fullName}
-              </p>
+      {/* ABA 1: DADOS PESSOAIS (Sem sub-caixas com bordas — Regra 3) */}
+      {activeTab === 'dados_pessoais' && (
+        <Card title="Dados Pessoais e Vínculo Familiar">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <dt className="text-xs text-ink-muted">Nome Completo</dt>
+              <dd className="mt-1 text-sm font-medium text-ink">{studentRow.person.fullName}</dd>
             </div>
-
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-500">Nome Social</span>
-              <p className="mt-1 font-bold text-slate-900 dark:text-white">
-                {studentRow.person.socialName || 'Não informado'}
-              </p>
+            <div>
+              <dt className="text-xs text-ink-muted">Nome Social</dt>
+              <dd className="mt-1 text-sm font-medium text-ink">
+                {studentRow.person.socialName || '—'}
+              </dd>
             </div>
-
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-500">
-                Data de Nascimento e Idade
-              </span>
-              <p className="mt-1 font-bold text-slate-900 dark:text-white">
-                {formatDateBR(studentRow.person.birthDate)} (
-                {calculateAgeYears(studentRow.person.birthDate)} anos)
-              </p>
+            <div>
+              <dt className="text-xs text-ink-muted">Nascimento</dt>
+              <dd className="mt-1 text-sm font-medium text-ink">
+                <span className="font-mono tabular-nums">
+                  {formatDateBR(studentRow.person.birthDate)}
+                </span>{' '}
+                ({calculateAgeYears(studentRow.person.birthDate)} anos)
+              </dd>
             </div>
-
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-500">CPF e RG</span>
-              <p className="mt-1 font-bold text-slate-900 dark:text-white">
-                CPF: {studentRow.person.cpf} • RG: {studentRow.person.rg}
-              </p>
+            <div>
+              <dt className="text-xs text-ink-muted">CPF / RG</dt>
+              <dd className="font-mono mt-1 text-sm font-medium text-ink tabular-nums">
+                {studentRow.person.cpf} • {studentRow.person.rg}
+              </dd>
             </div>
-
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-500">Autodeclaração Racial</span>
-              <p className="mt-1 font-bold text-slate-900 dark:text-white">
-                {studentRow.person.race}
-              </p>
+            <div>
+              <dt className="text-xs text-ink-muted">Autodeclaração</dt>
+              <dd className="mt-1 text-sm font-medium text-ink">{studentRow.person.race}</dd>
             </div>
-
-            <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-500">Responsável Familiar</span>
-              <p className="mt-1 font-bold text-slate-900 dark:text-white">
+            <div>
+              <dt className="text-xs text-ink-muted">Responsável Familiar</dt>
+              <dd className="mt-1 text-sm font-medium text-ink">
                 {studentRow.guardian
-                  ? `${getDisplayName(studentRow.guardian)} (${
-                      studentRow.relationship
-                    }) • ${studentRow.guardian.phone}`
+                  ? `${getDisplayName(studentRow.guardian)} (${studentRow.relationship}) • ${studentRow.guardian.phone}`
                   : 'Sem responsável vinculado'}
-              </p>
+              </dd>
             </div>
-          </div>
+          </dl>
 
           {studentRow.person.generalNotes && (
-            <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50/50 p-4 dark:border-primary-800 dark:bg-primary-950/30">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-primary-900 dark:text-primary-300">
-                Informações Gerais e Observações de Acolhimento
-              </span>
-              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">
-                {studentRow.person.generalNotes}
-              </p>
+            <div className="mt-5 rounded-md bg-subtle p-4">
+              <span className="text-xs font-medium text-ink-muted">Observações</span>
+              <p className="mt-1 text-sm text-ink">{studentRow.person.generalNotes}</p>
             </div>
           )}
         </Card>
       )}
 
-      {/* CONTEÚDO DA ABA 2: MATRÍCULAS */}
+      {/* ABA 2: MATRÍCULAS */}
       {activeTab === 'matriculas' && (
-        <Card
-          title="Vínculo de Matrícula e Histórico de Situação"
-          subtitle="Registro completo de ingresso, turma atribuída e alterações de status."
-        >
+        <Card title="Histórico de Matrícula">
           {studentRow.enrollment ? (
             <div className="space-y-4">
-              <div className="rounded-xl border-2 border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-subtle p-4">
                 <div>
-                  <span className="text-xs font-mono font-bold text-slate-500">
-                    Código: {studentRow.enrollment.enrollmentCode}
+                  <span className="font-mono text-xs text-ink-muted">
+                    {studentRow.enrollment.enrollmentCode}
                   </span>
-                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                    {studentRow.classRoomName} — 2º semestre de 2026
+                  <h3 className="text-sm font-semibold text-ink">
+                    {studentRow.classRoomName}
                   </h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
-                    Data de matrícula: {formatDateBR(studentRow.enrollment.enrolledAt)}
+                  <p className="text-xs text-ink-muted">
+                    Ingresso em{' '}
+                    <span className="font-mono">{formatDateBR(studentRow.enrollment.enrolledAt)}</span>
                   </p>
                 </div>
-
                 <Badge
-                  variant={
-                    studentRow.enrollment.status === 'ativa' ? 'success' : 'warning'
-                  }
+                  variant={studentRow.enrollment.status === 'ativa' ? 'progress' : 'assess'}
                 >
-                  Situação da Matrícula: {studentRow.enrollment.status.toUpperCase()}
+                  {studentRow.enrollment.status}
                 </Badge>
               </div>
 
-              <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
-                Linha do Tempo da Matrícula
-              </h4>
-              <div className="space-y-2.5">
+              <ul className="divide-y divide-line">
                 {studentRow.enrollment.statusHistory.map((hist, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-xl border border-slate-200 p-3.5 text-sm dark:border-slate-800"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Badge variant="neutral">{hist.status.toUpperCase()}</Badge>
-                      <span className="text-xs font-bold text-slate-500">
-                        Em {formatDateBR(hist.changedAt)}
-                      </span>
+                  <li key={idx} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="neutral">{hist.status}</Badge>
+                      <span className="text-ink">{hist.reason}</span>
                     </div>
-                    <p className="mt-1.5 text-slate-800 dark:text-slate-200">
-                      {hist.reason}
-                    </p>
-                  </div>
+                    <span className="font-mono text-xs text-ink-muted">
+                      {formatDateBR(hist.changedAt)}
+                    </span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           ) : (
-            <p className="text-sm text-slate-600">Nenhuma matrícula localizada.</p>
+            <p className="text-sm text-ink-muted">Nenhuma matrícula localizada.</p>
           )}
         </Card>
       )}
 
-      {/* CONTEÚDO DA ABA 3: FREQUÊNCIA */}
+      {/* ABA 3: FREQUÊNCIA */}
       {activeTab === 'frequencia' && (
-        <Card
-          title="Histórico de Presença nas Aulas"
-          subtitle={`Frequência acumulada atual: ${studentRow.attendancePct}% (Meta mínima recomendada: 75%).`}
-        >
+        <Card title="Frequência">
           <div className="space-y-4">
             <ProgressBarGroup
               items={[
                 {
                   id: studentRow.person.id,
-                  label: `Presença Geral de ${getDisplayName(studentRow.person)}`,
+                  label: 'Assiduidade Acumulada',
                   sublabel: studentRow.classRoomName,
                   value: studentRow.attendancePct,
                   max: 100,
@@ -369,144 +314,130 @@ export const StudentProfileTabsView: React.FC<StudentProfileTabsViewProps> = ({
               ]}
             />
 
-            <div className="space-y-2.5 pt-2">
+            <ul className="divide-y divide-line pt-2">
               {db.attendances
                 .filter((a) => a.studentPersonId === studentRow.person.id)
                 .map((att) => {
                   const lesson = db.lessons.find((l) => l.id === att.lessonId);
                   const subject = db.subjects.find((s) => s.id === lesson?.subjectId);
                   return (
-                    <div
+                    <li
                       key={att.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-3.5 dark:border-slate-800"
+                      className="flex flex-wrap items-center justify-between gap-2 py-3"
                     >
                       <div>
-                        <span className="text-xs font-bold text-primary-800 dark:text-primary-300">
-                          {formatDateBR(lesson?.date ?? att.recordedAt)} •{' '}
-                          {subject?.name ?? 'Aula'}
-                        </span>
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">
-                          {lesson?.topic ?? 'Encontro regular'}
+                        <p className="text-sm font-medium text-ink">
+                          {subject?.name ?? 'Aula'} — {lesson?.topic ?? 'Encontro regular'}
                         </p>
-                        {att.justification && (
-                          <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
-                            Justificativa: {att.justification}
-                          </p>
-                        )}
+                        <p className="text-xs text-ink-muted">
+                          <span className="font-mono">
+                            {formatDateBR(lesson?.date ?? att.recordedAt)}
+                          </span>
+                          {att.justification ? ` • ${att.justification}` : ''}
+                        </p>
                       </div>
                       <Badge
                         variant={
                           att.presence === 'presente'
-                            ? 'success'
+                            ? 'progress'
                             : att.presence === 'justificada'
-                            ? 'warning'
-                            : 'danger'
+                            ? 'assess'
+                            : 'critical'
                         }
                       >
-                        {att.presence.toUpperCase()}
+                        {att.presence}
                       </Badge>
-                    </div>
+                    </li>
                   );
                 })}
-            </div>
+            </ul>
           </div>
         </Card>
       )}
 
-      {/* CONTEÚDO DA ABA 4: BOLETIM / SIMULADOS */}
+      {/* ABA 4: BOLETIM / SIMULADOS */}
       {activeTab === 'boletim_simulados' && (
-        <Card
-          title="Boletim de Simulados ENEM (Escala 0 a 1.000)"
-          subtitle="Resultados alcançados pelo(a) estudante nas avaliações do cursinho."
-        >
-          <div className="space-y-4">
+        <Card title="Simulados ENEM" noPadding>
+          <ul className="divide-y divide-line">
             {db.grades
               .filter((g) => g.studentPersonId === studentRow.person.id)
               .map((grade) => {
-                const assessment = db.assessments.find(
-                  (a) => a.id === grade.assessmentId
-                );
+                const assessment = db.assessments.find((a) => a.id === grade.assessmentId);
                 return (
-                  <div
-                    key={grade.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50 space-y-2"
-                  >
+                  <li key={grade.id} className="p-5 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      <h4 className="text-sm font-semibold text-ink">
                         {assessment?.title ?? 'Simulado ENEM'}
                       </h4>
-                      <Badge variant="secondary" icon={<Award className="h-4 w-4" />}>
-                        Média Geral: {formatEnemScore(grade.score)}
-                      </Badge>
+                      <span className="font-mono text-sm font-semibold text-ink tabular-nums">
+                        {formatEnemScore(grade.score)}
+                      </span>
                     </div>
 
                     {grade.areaScores && (
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 pt-2 text-xs">
-                        <div className="rounded-lg bg-white p-2 border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-                          <span className="block text-slate-500">Redação</span>
-                          <strong className="text-sm">{grade.areaScores.redacao} pts</strong>
+                      <div className="grid grid-cols-2 gap-3 rounded-md bg-subtle p-3 sm:grid-cols-5 text-xs">
+                        <div>
+                          <span className="block text-ink-muted">Redação</span>
+                          <strong className="font-mono text-sm text-ink tabular-nums">
+                            {grade.areaScores.redacao}
+                          </strong>
                         </div>
-                        <div className="rounded-lg bg-white p-2 border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-                          <span className="block text-slate-500">Humanas</span>
-                          <strong className="text-sm">{grade.areaScores.humanas} pts</strong>
+                        <div>
+                          <span className="block text-ink-muted">Humanas</span>
+                          <strong className="font-mono text-sm text-ink tabular-nums">
+                            {grade.areaScores.humanas}
+                          </strong>
                         </div>
-                        <div className="rounded-lg bg-white p-2 border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-                          <span className="block text-slate-500">Linguagens</span>
-                          <strong className="text-sm">{grade.areaScores.linguagens} pts</strong>
+                        <div>
+                          <span className="block text-ink-muted">Linguagens</span>
+                          <strong className="font-mono text-sm text-ink tabular-nums">
+                            {grade.areaScores.linguagens}
+                          </strong>
                         </div>
-                        <div className="rounded-lg bg-white p-2 border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-                          <span className="block text-slate-500">Natureza</span>
-                          <strong className="text-sm">{grade.areaScores.natureza} pts</strong>
+                        <div>
+                          <span className="block text-ink-muted">Natureza</span>
+                          <strong className="font-mono text-sm text-ink tabular-nums">
+                            {grade.areaScores.natureza}
+                          </strong>
                         </div>
-                        <div className="rounded-lg bg-white p-2 border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-                          <span className="block text-slate-500">Matemática</span>
-                          <strong className="text-sm">{grade.areaScores.matematica} pts</strong>
+                        <div>
+                          <span className="block text-ink-muted">Matemática</span>
+                          <strong className="font-mono text-sm text-ink tabular-nums">
+                            {grade.areaScores.matematica}
+                          </strong>
                         </div>
                       </div>
                     )}
 
                     {grade.feedback && (
-                      <p className="text-xs italic text-slate-700 dark:text-slate-300 pt-1">
-                        Comentário dos professores: "{grade.feedback}"
-                      </p>
+                      <p className="text-xs text-ink-muted">{grade.feedback}</p>
                     )}
-                  </div>
+                  </li>
                 );
               })}
-          </div>
+          </ul>
         </Card>
       )}
 
-      {/* CONTEÚDO DA ABA 5: HISTÓRICO / OCORRÊNCIAS PEDAGÓGICAS */}
+      {/* ABA 5: HISTÓRICO */}
       {activeTab === 'historico_ocorrencias' && (
-        <Card
-          title="Histórico de Acolhimento e Observações Pedagógicas"
-          subtitle="Registros internos da coordenação sobre acompanhamento individual e familiar."
-        >
-          <div className="space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-              <span className="text-xs font-bold text-primary-800 dark:text-primary-300">
-                Observação Cadastral Permanente
-              </span>
-              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">
-                {studentRow.person.generalNotes ||
-                  'Nenhuma observação especial registrada até o momento.'}
-              </p>
-            </div>
+        <Card title="Histórico e Observações">
+          <div className="space-y-4">
+            <p className="text-sm text-ink">
+              {studentRow.person.generalNotes || 'Nenhuma observação cadastrada.'}
+            </p>
 
             {studentRow.attendancePct < 75 && (
-              <CalloutAlert
-                variant="warning"
-                title="Registro Automático de Acompanhamento de Presença"
-              >
-                Estudante encontra-se com presença acumulada de{' '}
-                <strong>{studentRow.attendancePct}%</strong>. Recomendado contato via WhatsApp (
-                {studentRow.person.phone}) para oferecer listas de revisão.
+              <CalloutAlert variant="warning" title="Frequência abaixo de 75%">
+                Presença atual em <strong className="font-mono">{studentRow.attendancePct}%</strong>.
+                Contato: <span className="font-mono">{studentRow.person.phone}</span>.
               </CalloutAlert>
             )}
           </div>
         </Card>
       )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,26 +1,19 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  Award,
-  Bell,
+  Ban,
   BookOpen,
-  CalendarCheck,
-  CheckCircle2,
+  Calendar,
+  ExternalLink,
   Eye,
-  FilePenLine,
   GraduationCap,
-  HeartHandshake,
-  Mail,
-  MessageSquareHeart,
   Plus,
-  RefreshCw,
-  Save,
   Sparkles,
-  Trash2,
-  UserCheck,
   Users,
 } from 'lucide-react';
 import {
   Badge,
+  BrandLoader,
+  BrandLockup,
   Button,
   CalloutAlert,
   Card,
@@ -32,677 +25,716 @@ import {
   ProgressBarGroup,
   SearchBar,
   Select,
+  SkeletonCard,
+  SkeletonMetric,
+  SkeletonTable,
+  SlideOverDrawer,
 } from '../components/ui';
+import { DataTable, DataTableColumn } from '../components/shared/DataTable';
+import { ScheduleMatrix } from '../components/shared/ScheduleMatrix';
+import { StudentCard } from '../components/shared/StudentCard';
 import { AccessibilityToolbar } from '../components/shared/AccessibilityToolbar';
-import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useToast } from '../contexts/ToastContext';
-import { MOCK_STUDENT_SUMMARY, MOCK_SUBJECT_ATTENDANCE } from '../mocks/designSystemMocks';
-import { evaluateAttendanceStatus } from '../utils/formatters';
+import { AttendancePresence, Person } from '../types';
+import { ScheduleMatrixEntry } from '../utils/scheduleConflicts';
+
+interface DemoStudentRow {
+  id: string;
+  enrollmentCode: string;
+  fullName: string;
+  cpf: string;
+  turma: string;
+  attendance: number;
+  lastEnemScore: number;
+  status: 'active' | 'inactive';
+}
+
+const DEMO_STUDENTS: DemoStudentRow[] = [
+  {
+    id: 'st-01',
+    enrollmentCode: '2026.2.0014',
+    fullName: 'Mariana Oliveira Santos',
+    cpf: '401.501.601-01',
+    turma: 'Turma Esperança • Noite',
+    attendance: 71,
+    lastEnemScore: 610,
+    status: 'active',
+  },
+  {
+    id: 'st-02',
+    enrollmentCode: '2026.2.0019',
+    fullName: 'LucasGabriel Ferreira',
+    cpf: '402.502.602-02',
+    turma: 'Turma Esperança • Noite',
+    attendance: 92,
+    lastEnemScore: 685,
+    status: 'active',
+  },
+  {
+    id: 'st-03',
+    enrollmentCode: '2026.2.0027',
+    fullName: 'Beatriz Nascimento Costa',
+    cpf: '403.503.603-03',
+    turma: 'Turma Paulo Freire • Manhã',
+    attendance: 78,
+    lastEnemScore: 640,
+    status: 'active',
+  },
+];
+
+const DEMO_MATRIX_ENTRIES: ScheduleMatrixEntry[] = [
+  {
+    id: 'm-1',
+    dayOfWeek: 'Seg',
+    shiftSlot: 'Noite',
+    dateIso: '2026-11-16',
+    startTime: '19:00',
+    endTime: '20:30',
+    subjectId: 'sub-mat',
+    subjectName: 'Matemática e suas Tecnologias',
+    classRoomId: 'cls-esp',
+    classRoomName: 'Turma Esperança • Sala 01',
+    teacherPersonId: 'per-prof-01',
+    teacherName: 'Prof. Carlos Eduardo Lima',
+    topic: 'Geometria Espacial e Probabilidade ENEM',
+    status: 'ministrada',
+  },
+  {
+    id: 'm-2',
+    dayOfWeek: 'Seg',
+    shiftSlot: 'Noite',
+    dateIso: '2026-11-16',
+    startTime: '19:30',
+    endTime: '21:00',
+    subjectId: 'sub-fis',
+    subjectName: 'Física — Eletrodinâmica',
+    classRoomId: 'cls-a',
+    classRoomName: 'Turma Carolina de Jesus • Sala 02',
+    teacherPersonId: 'per-prof-01',
+    teacherName: 'Prof. Carlos Eduardo Lima',
+    topic: 'Circuitos Elétricos e Potência',
+    status: 'agendada',
+  },
+  {
+    id: 'm-3',
+    dayOfWeek: 'Qua',
+    shiftSlot: 'Noite',
+    dateIso: '2026-11-18',
+    startTime: '19:00',
+    endTime: '20:30',
+    subjectId: 'sub-red',
+    subjectName: 'Redação Dissertativa-Argumentativa',
+    classRoomId: 'cls-esp',
+    classRoomName: 'Turma Esperança • Sala 01',
+    teacherPersonId: 'per-prof-02',
+    teacherName: 'Profa. Juliana Mendes',
+    topic: 'Competência V e Proposta de Intervenção',
+    status: 'agendada',
+  },
+];
+
+const DEMO_STUDENT_PERSON: Person = {
+  id: 'per-est-01',
+  fullName: 'Mariana Oliveira Santos',
+  cpf: '401.501.601-01',
+  rg: '28.419.302-4',
+  birthDate: '2007-04-12',
+  phone: '(21) 99123-4501',
+  race: 'Parda',
+  email: 'mariana.estudante@bonsucesso.org.br',
+  status: 'active',
+  createdAt: '2026-07-15',
+};
 
 export const DesignSystemPage: React.FC = () => {
-  const { theme, fontScale } = useAccessibility();
   const { showToast } = useToast();
 
-  // Estados de demonstração para formulários e busca
-  const [studentName, setStudentName] = useState('Mariana Oliveira Santos');
-  const [guardianPhone, setGuardianPhone] = useState('');
-  const [phoneError, setPhoneError] = useState('Digite o telefone com DDD (ex: 11 98765-4321) para avisos importantes.');
-  const [selectedShift, setSelectedShift] = useState('noite');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSavingDemo, setIsSavingDemo] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+  const [selectedTurn, setSelectedTurn] = useState('noite');
+  const [cpfDemo, setCpfDemo] = useState('123.45');
+  const [presenceDemo, setPresenceDemo] = useState<AttendancePresence>('presente');
+  const [justificationDemo, setJustificationDemo] = useState('');
+  const [isSkeletonDemo, setIsSkeletonDemo] = useState(false);
 
-  // Estados de demonstração para Modal e ConfirmDialog
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  // Drawer de Revelação Progressiva (5 Abas Acadêmicas)
+  const [drawerStudent, setDrawerStudent] = useState<DemoStudentRow | null>(null);
+  const [drawerTab, setDrawerTab] = useState('dados');
 
-  // Filtra matérias da barra de progresso para demonstrar o EmptyState funcionando na prática
-  const filteredSubjects = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return MOCK_SUBJECT_ATTENDANCE;
-    return MOCK_SUBJECT_ATTENDANCE.filter(
-      (subj) =>
-        subj.subjectName.toLowerCase().includes(query) ||
-        subj.area.toLowerCase().includes(query) ||
-        subj.teacherName.toLowerCase().includes(query)
-    );
-  }, [searchQuery]);
+  // Modal e Soft Delete
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSoftDeleteOpen, setIsSoftDeleteOpen] = useState(false);
 
-  const progressItems = useMemo(
-    () =>
-      filteredSubjects.map((subj) => ({
-        id: subj.id,
-        label: subj.subjectName,
-        sublabel: `Área: ${subj.area} • ${subj.teacherName} (${subj.presentClasses} presenças em ${subj.totalClasses} aulas)`,
-        value: subj.percentage,
-        max: 100,
-        unit: '%',
-        thresholdPercentage: 75,
-      })),
-    [filteredSubjects]
-  );
-
-  const overallAttendanceEval = evaluateAttendanceStatus(
-    MOCK_STUDENT_SUMMARY.attendancePercentage
-  );
-
-  const handleSimulateSave = () => {
-    setIsSavingDemo(true);
-    window.setTimeout(() => {
-      setIsSavingDemo(false);
-      showToast({
-        variant: 'success',
-        title: 'Alterações salvas com sucesso!',
-        description: 'Os dados de acompanhamento foram atualizados no caderno da turma.',
-      });
-    }, 900);
-  };
+  const columns: Array<DataTableColumn<DemoStudentRow>> = [
+    {
+      id: 'code',
+      header: 'Matrícula',
+      sortAccessor: (r) => r.enrollmentCode,
+      renderCell: (r) => <span className="num font-semibold">{r.enrollmentCode}</span>,
+    },
+    {
+      id: 'name',
+      header: 'Estudante',
+      sortAccessor: (r) => r.fullName,
+      renderCell: (r) => (
+        <div>
+          <p className="font-semibold text-ink">{r.fullName}</p>
+          <p className="num text-xs text-ink-muted">{r.cpf}</p>
+        </div>
+      ),
+    },
+    {
+      id: 'turma',
+      header: 'Turma / Turno',
+      sortAccessor: (r) => r.turma,
+      renderCell: (r) => <Badge variant="academic">{r.turma}</Badge>,
+    },
+    {
+      id: 'attendance',
+      header: 'Frequência',
+      sortAccessor: (r) => r.attendance,
+      renderCell: (r) => (
+        <Badge variant={r.attendance < 75 ? 'critical' : 'progress'}>
+          <span className="num">{r.attendance}%</span>
+        </Badge>
+      ),
+    },
+    {
+      id: 'enem',
+      header: 'Último Simulado',
+      sortAccessor: (r) => r.lastEnemScore,
+      renderCell: (r) => <span className="num font-semibold">{r.lastEnemScore} pts</span>,
+    },
+    {
+      id: 'actions',
+      header: 'Ficha (Drawer)',
+      renderCell: (r) => (
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<Eye className="h-4 w-4" />}
+          onClick={(e) => {
+            e.stopPropagation();
+            setDrawerStudent(r);
+            setDrawerTab('dados');
+          }}
+        >
+          Abrir Ficha
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-10 pb-12">
-      {/* Cabeçalho Explicativo do Design System */}
-      <section aria-labelledby="ds-heading" className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <Badge variant="primary" icon={<Sparkles className="h-4 w-4" />}>
-              Etapa 1 • Fundação Arquitetural e Design System
-            </Badge>
-            <h1
-              id="ds-heading"
-              className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white"
-            >
-              Catálogo Interativo de Componentes — IntegraCurso
-            </h1>
-            <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-              Validação visual e funcional dos componentes reutilizáveis projetados para jovens estudantes,
-              professores voluntários e pais ou responsáveis. Abaixo você pode simular as preferências de{' '}
-              <strong className="font-semibold text-slate-900 dark:text-white">Tema</strong> e{' '}
-              <strong className="font-semibold text-slate-900 dark:text-white">Tamanho da Letra</strong> (que ficarão disponíveis na aba de Configurações do Perfil).
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-primary-200 bg-primary-50/80 px-4 py-3 text-sm dark:border-primary-800 dark:bg-primary-950/60">
-            <p className="font-bold text-primary-900 dark:text-primary-200">
-              Estado Atual de Acessibilidade:
-            </p>
-            <p className="text-slate-700 dark:text-slate-300 mt-0.5">
-              Tema: <strong>{theme === 'light' ? 'Claro Acolhedor' : 'Escuro (Alto Contraste)'}</strong> •{' '}
-              Fonte:{' '}
-              <strong>
-                {fontScale === 'normal'
-                  ? 'Normal (16px)'
-                  : fontScale === 'large'
-                  ? 'Grande (18px)'
-                  : 'Extra Grande (20px)'}
-              </strong>
-            </p>
-          </div>
-        </div>
-
-        {/* Painel temporário apenas na página de validação do Design System */}
-        <Card
-          title="Simulação das Preferências de Aparência (Configurações do Perfil)"
-          subtitle="Na aplicação final, o site carrega com o tamanho padrão (16px) e estes controles ficarão organizados dentro da aba de Configurações do Perfil de cada usuário."
-        >
-          <AccessibilityToolbar />
-        </Card>
-      </section>
-
-      {/* 1. Paleta Institucional e Semântica */}
-      <Card
-        as="section"
-        title="1. Identidade Visual e Cores Semânticas (WCAG 2.1 AA)"
-        subtitle="Cores pensadas para transmitir acolhimento comunitário, clareza pedagógica e nunca depender apenas da cor."
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-xl border border-primary-300 bg-primary-700 p-4 text-white">
-            <p className="font-bold text-base">Primária Institucional</p>
-            <p className="text-sm opacity-90 mt-1">Azul Petróleo / Teal (#0F766E)</p>
-            <p className="text-xs opacity-80 mt-2">Acolhimento, confiança e ação principal</p>
-          </div>
-
-          <div className="rounded-xl border border-secondary-300 bg-secondary-700 p-4 text-white">
-            <p className="font-bold text-base">Destaque Pedagógico</p>
-            <p className="text-sm opacity-90 mt-1">Azul Índigo (#4338CA)</p>
-            <p className="text-xs opacity-80 mt-2">Simulados ENEM, notas e progresso</p>
-          </div>
-
-          <div className="rounded-xl border border-success-500/40 bg-success-50 p-4 text-success-900 dark:bg-success-900/40 dark:text-emerald-100">
-            <p className="font-bold text-base">Sucesso / Regular</p>
-            <p className="text-sm mt-1">Verde Esmeralda (#047857)</p>
-            <p className="text-xs mt-2">Presença ≥ 75% e atividades em dia</p>
-          </div>
-
-          <div className="rounded-xl border border-warning-500/50 bg-warning-50 p-4 text-warning-900 dark:bg-warning-900/40 dark:text-amber-100">
-            <p className="font-bold text-base">Alerta Preventivo</p>
-            <p className="text-sm mt-1">Âmbar Contraste (#B45309)</p>
-            <p className="text-xs mt-2">Atenção à frequência ou prazos próximos</p>
-          </div>
-
-          <div className="rounded-xl border border-danger-500/50 bg-danger-50 p-4 text-danger-900 dark:bg-danger-900/40 dark:text-red-100">
-            <p className="font-bold text-base">Atenção Crítica</p>
-            <p className="text-sm mt-1">Vermelho Sóbrio (#B91C1C)</p>
-            <p className="text-xs mt-2">Presença &lt; 75% ou campos obrigatórios</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* 2. Botões e Estados de Ação */}
-      <Card
-        as="section"
-        title="2. Botões Acessíveis (Button)"
-        subtitle="Área mínima de toque de 44x44px, ícones sempre acompanhados de rótulos claros e estado de carregamento."
-      >
-        <div className="space-y-6">
-          <div>
-            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-              Variantes Principais (Tamanho Padrão 44px)
-            </h4>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="primary"
-                leftIcon={<Save className="h-5 w-5" />}
-                onClick={handleSimulateSave}
-                isLoading={isSavingDemo}
-                loadingText="Salvando registro..."
-              >
-                Salvar Chamada da Turma
-              </Button>
-
-              <Button
-                variant="secondary"
-                leftIcon={<GraduationCap className="h-5 w-5" />}
-                onClick={() =>
-                  showToast({
-                    variant: 'info',
-                    title: 'Caderno de Simulados ENEM',
-                    description: 'Visualizando notas no padrão de 0 a 1000 pontos.',
-                  })
-                }
-              >
-                Ver Notas do Simulado
-              </Button>
-
-              <Button
-                variant="ghost"
-                leftIcon={<Eye className="h-5 w-5" />}
-                onClick={() => setIsDetailsModalOpen(true)}
-              >
-                Ver Ficha da Estudante
-              </Button>
-
-              <Button
-                variant="danger"
-                leftIcon={<Trash2 className="h-5 w-5" />}
-                onClick={() => setIsConfirmDialogOpen(true)}
-              >
-                Cancelar Inscrição no Simulado
-              </Button>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-100 pt-5 dark:border-slate-800">
-            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-              Tamanhos Amplos (52px) e Estados Desabilitados / Carregando
-            </h4>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="primary"
-                size="lg"
-                leftIcon={<HeartHandshake className="h-5 w-5" />}
-                onClick={() =>
-                  showToast({
-                    variant: 'success',
-                    title: 'Mensagem enviada para a coordenação!',
-                    description: 'A equipe pedagógica responderá em breve.',
-                  })
-                }
-              >
-                Falar com a Coordenação (Botão Amplo)
-              </Button>
-
-              <Button variant="primary" isLoading loadingText="Enviando frequência...">
-                Enviando
-              </Button>
-
-              <Button variant="ghost" disabled leftIcon={<CheckCircle2 className="h-5 w-5" />}>
-                Chamada já concluída
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* 3. Badges Semânticos */}
-      <Card
-        as="section"
-        title="3. Rótulos de Status (Badge)"
-        subtitle="Status visuais claros que combinam ícone + texto explicativo para leitores de tela e pessoas com daltonismo."
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="success">Presença em dia (88%)</Badge>
-          <Badge variant="warning">Próximo ao limite (76%)</Badge>
-          <Badge variant="danger">Atenção: Abaixo de 75% (68%)</Badge>
-          <Badge variant="primary" icon={<UserCheck className="h-4 w-4" />}>
-            Matrícula Ativa 2026
-          </Badge>
-          <Badge variant="secondary" icon={<Award className="h-4 w-4" />}>
-            Redação Nota 840 / 1000
-          </Badge>
-          <Badge variant="neutral">Turma Paulo Freire — Noite</Badge>
-        </div>
-      </Card>
-
-      {/* 4. Cartões de Métricas Pedagógicas (MetricCard) */}
-      <section aria-labelledby="metrics-heading" className="space-y-4">
-        <div>
-          <h2 id="metrics-heading" className="text-xl font-bold text-slate-900 dark:text-white">
-            4. Cartões de Métricas Pedagógicas (MetricCard — Escala ENEM e %)
-          </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Exibição direta e sem jargões para acompanhamento de frequência (%) e desempenho nos simulados (0 a 1000 pontos).
+    <div className="space-y-8">
+      {/* Cabeçalho do Contrato Global */}
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink pb-6">
+        <div className="space-y-2">
+          <p className="eyebrow">Contrato Global de Design System, UX e Frontend</p>
+          <h1>Bonsucesso+ — Bauhaus Suíço &amp; Sinalização Funcional (90/10)</h1>
+          <p className="max-w-3xl text-sm text-ink-muted">
+            90% monocromático (Branco Papel <code className="num">#FAF9F6</code> + Preto Tinta{' '}
+            <code className="num">#111111</code>) e 10% semântico funcional nas 4 cores da marca
+            (Azul Acadêmico, Verde Progresso, Amarelo Avaliação &amp; Tempo, Vermelho Crítico).
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          <MetricCard
-            title="Frequência Geral nas Aulas"
-            value={MOCK_STUDENT_SUMMARY.attendancePercentage}
-            scale="percentage"
-            accentColor="danger"
-            icon={<CalendarCheck className="h-6 w-6 text-danger-700 dark:text-danger-400" />}
-            statusBadge={{
-              label: overallAttendanceEval.label,
-              variant: 'danger',
-            }}
-            trend={{
-              direction: 'down',
-              label: '3% abaixo da meta de 75%',
-              variant: 'danger',
-            }}
-            subtitle="Recomendado mínimo de 75% de presença para acompanhar todo o conteúdo do ENEM."
-          />
+        <AccessibilityToolbar />
+      </div>
 
-          <MetricCard
-            title="Média Geral nos Simulados"
-            value={MOCK_STUDENT_SUMMARY.enemAverageScore}
-            scale="enem"
-            accentColor="secondary"
-            icon={<GraduationCap className="h-6 w-6 text-secondary-700 dark:text-secondary-400" />}
-            trend={{
-              direction: 'up',
-              label: '+45 pts desde o 1º Simulado',
-              variant: 'success',
-            }}
-            subtitle="Calculada sobre as 4 áreas de conhecimento + Redação do ENEM."
-          />
-
-          <MetricCard
-            title="Última Nota de Redação"
-            value={MOCK_STUDENT_SUMMARY.redacaoLastScore}
-            scale="enem"
-            accentColor="primary"
-            icon={<FilePenLine className="h-6 w-6 text-primary-700 dark:text-primary-400" />}
-            statusBadge={{
-              label: 'Ótimo evolução',
-              variant: 'success',
-            }}
-            trend={{
-              direction: 'up',
-              label: '+80 pts na Competência 3',
-              variant: 'success',
-            }}
-            subtitle="Tema: 'Caminhos para democratizar o acesso à leitura no Brasil'."
-          />
-        </div>
-      </section>
-
-      {/* 5. Avisos Contextuais (CalloutAlert) */}
+      {/* 1. Identidade Visual e Tokens de Cor */}
       <Card
-        as="section"
-        title="5. Avisos Contextuais (CalloutAlert)"
-        subtitle="Mensagens acolhedoras que orientam estudantes, pais e professores sem termos burocráticos."
-      >
-        <div className="space-y-4">
-          <CalloutAlert
-            variant="warning"
-            title="Frequência abaixo de 75% em Matemática Básica"
-            action={
-              <Button
-                variant="ghost"
-                onClick={() =>
-                  showToast({
-                    variant: 'info',
-                    title: 'Apoio Pedagógico Solicitado',
-                    description: 'O professor voluntário enviará o material de revisão.',
-                  })
-                }
-              >
-                Pedir Material de Revisão
-              </Button>
-            }
-          >
-            Notamos que Mariana esteve ausente nas últimas 3 aulas de Matemática (presença atual: 65%).
-            Se precisar de ajuda com transporte ou horários de monitoria, converse com a coordenação.
-          </CalloutAlert>
-
-          <CalloutAlert
-            variant="info"
-            title="Inscrições abertas para o 5º Simulado Comunitário ENEM"
-          >
-            O simulado acontecerá neste sábado, das 13h às 18h30. Lembre-se de trazer caneta esferográfica
-            de tinta preta fabricada em material transparente e lanche leve.
-          </CalloutAlert>
-
-          <CalloutAlert
-            variant="success"
-            title="Redação corrigida pela professora voluntária!"
-          >
-            Os comentários detalhados por competência do ENEM já estão disponíveis para leitura.
-          </CalloutAlert>
-
-          <CalloutAlert
-            variant="error"
-            title="Não foi possível salvar a lista de presença"
-          >
-            Verifique se todos os estudantes da turma foram marcados como Presente, Falta ou Falta Justificada antes de concluir.
-          </CalloutAlert>
-        </div>
-      </Card>
-
-      {/* 6. Formulários Claros (Input, Select, SearchBar) */}
-      <Card
-        as="section"
-        title="6. Campos de Formulário Acessíveis (Input, Select e SearchBar)"
-        subtitle="Rótulos (labels) sempre visíveis acima do campo, dicas claras de preenchimento e validação explícita."
-      >
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <Input
-            label="Nome completo do(a) estudante"
-            required
-            value={studentName}
-            onChange={(e) => setStudentName(e.target.value)}
-            placeholder="Ex: Mariana Oliveira Santos"
-            helperText="Use o mesmo nome que consta no documento de identidade para o dia do simulado."
-            leftIcon={<Users className="h-5 w-5" />}
-          />
-
-          <Select
-            label="Turma e Turno de Estudo"
-            required
-            value={selectedShift}
-            onChange={(e) => setSelectedShift(e.target.value)}
-            leftIcon={<BookOpen className="h-5 w-5" />}
-            helperText="Você pode solicitar mudança de turno diretamente na secretaria comunitária."
-            options={[
-              { value: 'manha', label: 'Turma Carolina Maria de Jesus — Manhã (08h às 12h)' },
-              { value: 'tarde', label: 'Turma Milton Santos — Tarde (14h às 18h)' },
-              { value: 'noite', label: 'Turma Paulo Freire — Noite (19h às 22h30)' },
-            ]}
-          />
-
-          <Input
-            label="Telefone ou WhatsApp do Responsável"
-            required
-            value={guardianPhone}
-            onChange={(e) => {
-              const val = e.target.value;
-              setGuardianPhone(val);
-              if (val.trim().length >= 10) {
-                setPhoneError('');
-              } else {
-                setPhoneError('Digite o telefone com DDD (ex: 11 98765-4321) para avisos importantes.');
-              }
-            }}
-            placeholder="Ex: (11) 98765-4321"
-            errorText={phoneError}
-            helperText="Digite ao menos 10 números acima para ver o erro desaparecer."
-            leftIcon={<Mail className="h-5 w-5" />}
-          />
-
-          <Input
-            label="Observação de Saúde ou Acessibilidade"
-            optionalText="Opcional"
-            placeholder="Ex: Precisa sentar nas primeiras fileiras da sala"
-            helperText="Informação confidencial compartilhada apenas com a coordenação pedagógica."
-          />
-        </div>
-      </Card>
-
-      {/* 7. Barras de Progresso Rotuladas (ProgressBarGroup) + Busca + EmptyState */}
-      <Card
-        as="section"
-        title="7. Barras de Presença por Matéria (ProgressBarGroup) + Busca e Estado Vazio (EmptyState)"
-        subtitle="Filtre as matérias abaixo. Se você digitar uma matéria inexistente (ex: 'Francês'), verá o componente EmptyState em ação."
+        eyebrow="1. Identidade Visual & Regra 90/10"
+        title="Lockup Bonsucesso+ e Tokens Semânticos Obrigatórios"
+        subtitle="Proibido usar cores decorativas fora desta tabela ou sombras pesadas."
       >
         <div className="space-y-6">
-          <div className="max-w-xl">
-            <SearchBar
-              label="Filtrar matérias por nome, área do ENEM ou professor(a)"
-              value={searchQuery}
-              onValueChange={setSearchQuery}
-              placeholder="Digite ex: Matemática, Redação, Beatriz..."
-              helperText="Experimente digitar uma palavra que não existe para testar a mensagem de lista vazia."
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded border border-line bg-paper p-4">
+            <BrandLockup
+              size="lg"
+              subtitle="Grade 2x2 (6px + gap 2px) • Plus Jakarta Sans ExtraBold"
             />
-          </div>
-
-          {progressItems.length > 0 ? (
-            <ProgressBarGroup items={progressItems} showThresholdMarker defaultThreshold={75} />
-          ) : (
-            <EmptyState
-              title={`Nenhuma matéria encontrada para "${searchQuery}"`}
-              description="Não encontramos nenhuma disciplina ou professor com esse termo. Verifique a grafia ou limpe o filtro para ver todas as matérias do cursinho."
-              action={
-                <Button
-                  variant="primary"
-                  leftIcon={<RefreshCw className="h-4 w-4" />}
-                  onClick={() => setSearchQuery('')}
-                >
-                  Mostrar Todas as Matérias
-                </Button>
-              }
-            />
-          )}
-        </div>
-      </Card>
-
-      {/* 8. Modais, Prevenção de Erros e Notificações Toast */}
-      <Card
-        as="section"
-        title="8. Janelas de Diálogo (Modal, ConfirmDialog) e Feedback Imediato (ToastNotification)"
-        subtitle="Com trap de foco por teclado, fechamento via tecla Esc e foco nas Heurísticas de Nielsen (Visibilidade do Status e Prevenção de Erros)."
-      >
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950/60 space-y-3">
-            <h4 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              Testar Modal e Diálogo de Confirmação (Trap de Foco + Esc)
-            </h4>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Ao abrir qualquer janela, o foco do teclado fica retido dentro dela e a tecla <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-bold dark:border-slate-700 dark:bg-slate-800">Esc</kbd> fecha com segurança.
-            </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button
-                variant="primary"
-                leftIcon={<MessageSquareHeart className="h-5 w-5" />}
-                onClick={() => setIsDetailsModalOpen(true)}
-              >
-                Abrir Modal de Acolhimento
-              </Button>
-
-              <Button
-                variant="danger"
-                leftIcon={<Trash2 className="h-5 w-5" />}
-                onClick={() => setIsConfirmDialogOpen(true)}
-              >
-                Abrir ConfirmDialog (Prevenção de Erro)
-              </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="academic">Azul #1D4ED8 • Acadêmico</Badge>
+              <Badge variant="progress">Verde #15803D • Progresso</Badge>
+              <Badge variant="assess">Amarelo #EAB308 • Avaliação &amp; Tempo</Badge>
+              <Badge variant="critical">Vermelho #DC2626 • Crítico</Badge>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950/60 space-y-3">
-            <h4 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              Testar Notificações Instantâneas (ToastNotification)
-            </h4>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Cada clique dispara um feedback claro no canto inferior direito da tela com botão rotulado para fechar.
-            </p>
-            <div className="flex flex-wrap gap-2.5 pt-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded border border-academic-border bg-academic-bg p-4">
+              <div className="flex items-center justify-between">
+                <span className="eyebrow text-academic">Eixo Acadêmico</span>
+                <span className="num text-xs font-semibold text-academic">#1D4ED8</span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-ink">
+                Aulas, Turmas, Disciplinas e Google Classroom
+              </p>
+              <p className="num mt-1 text-xs text-ink-muted">
+                Fundo #EFF6FF • Borda #BFDBFE
+              </p>
+            </div>
+
+            <div className="rounded border border-progress-border bg-progress-bg p-4">
+              <div className="flex items-center justify-between">
+                <span className="eyebrow text-progress">Eixo de Progresso</span>
+                <span className="num text-xs font-semibold text-progress">#15803D</span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-ink">
+                Frequência em dia (≥75%), Matrículas Ativas e Metas
+              </p>
+              <p className="num mt-1 text-xs text-ink-muted">
+                Fundo #F0FDF4 • Borda #BBF7D0
+              </p>
+            </div>
+
+            <div className="rounded border border-assess-border bg-assess-bg p-4">
+              <div className="flex items-center justify-between">
+                <span className="eyebrow text-assess-ink">Avaliação &amp; Tempo</span>
+                <span className="num text-xs font-semibold text-assess-ink">#EAB308</span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-ink">
+                Simulados ENEM, Notas, Calendário e Alertas Preventivos
+              </p>
+              <p className="num mt-1 text-xs text-assess-ink">
+                Texto obrigatório #111111 ou #854D0E
+              </p>
+            </div>
+
+            <div className="rounded border border-critical-border bg-critical-bg p-4">
+              <div className="flex items-center justify-between">
+                <span className="eyebrow text-critical">Eixo Crítico</span>
+                <span className="num text-xs font-semibold text-critical">#DC2626</span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-ink">
+                Faltas &lt;75%, Choques de Horário, Trancamento e Soft Delete
+              </p>
+              <p className="num mt-1 text-xs text-ink-muted">
+                Fundo #FEF2F2 • Borda #FECACA
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* 2. MetricCards (KPIs com JetBrains Mono Tabular) */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="eyebrow">2. Indicadores Pedagógicos &amp; Skeleton Loading</p>
+            <h2>MetricCard com JetBrains Mono (tabular-nums)</h2>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsSkeletonDemo((prev) => !prev)}
+          >
+            {isSkeletonDemo ? 'Exibir Dados Reais' : 'Testar Skeleton Loading'}
+          </Button>
+        </div>
+
+        {isSkeletonDemo ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <SkeletonMetric />
+            <SkeletonMetric />
+            <SkeletonMetric />
+            <SkeletonMetric />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              title="3º Simulado Geral ENEM"
+              value={645}
+              scale="enem"
+              accentColor="assess"
+              icon={<GraduationCap />}
+              trend={{ direction: 'up', label: '+45 pts vs. Agosto' }}
+              subtitle="Média das 5 áreas do conhecimento"
+            />
+            <MetricCard
+              title="Redação ENEM (Comp. I–V)"
+              value={820}
+              scale="enem"
+              accentColor="academic"
+              icon={<BookOpen />}
+              statusBadge={{ label: 'Melhor nota do semestre', variant: 'academic' }}
+              subtitle="Tema: Acesso à Leitura no Brasil"
+            />
+            <MetricCard
+              title="Assiduidade Geral"
+              value={86}
+              scale="percentage"
+              accentColor="progress"
+              icon={<Users />}
+              statusBadge={{ label: 'Acima da meta (75%)', variant: 'progress' }}
+              subtitle="38 presenças • 6 faltas registradas"
+            />
+            <MetricCard
+              title="Acolhimento Prioritário"
+              value={3}
+              scale="raw"
+              accentColor="critical"
+              icon={<Calendar />}
+              statusBadge={{ label: 'Frequência < 75%', variant: 'critical' }}
+              subtitle="Estudantes acompanhados pela coordenação"
+            />
+          </div>
+        )}
+      </section>
+
+      {/* 3. Botões, Badges, Inputs e Validação Inline */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <Card
+          className="lg:col-span-6"
+          eyebrow="3. Lei de Fitts (Alvos >= 40px Desktop / 44px Mobile)"
+          title="Botões, Badges Compactos e Modais"
+          subtitle="Ação primária em Preto Tinta (#111111), Google Classroom em Azul (#1D4ED8) e Soft Delete em Vermelho (#DC2626)."
+        >
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="primary"
-                leftIcon={<Bell className="h-4 w-4" />}
+                leftIcon={<Plus />}
                 onClick={() =>
                   showToast({
                     variant: 'success',
-                    title: 'Presença registrada com sucesso!',
-                    description: '28 estudantes presentes na aula de Redação de hoje.',
+                    title: 'Ação primária executada',
+                    description: 'Feedback imediato via Toast Notification.',
                   })
                 }
               >
-                Toast de Sucesso
+                Novo Aluno
               </Button>
-
+              <Button variant="secondary" onClick={() => setIsModalOpen(true)}>
+                Abrir Modal
+              </Button>
               <Button
-                variant="secondary"
-                leftIcon={<Bell className="h-4 w-4" />}
+                variant="academic"
+                leftIcon={<ExternalLink />}
                 onClick={() =>
                   showToast({
                     variant: 'info',
-                    title: 'Novo material de estudo publicado',
-                    description: 'Apostila de História do Brasil disponível para download.',
+                    title: 'Google Classroom',
+                    description: 'Abrindo ambiente virtual da Turma Esperança.',
                   })
                 }
               >
-                Toast Informativo
+                Google Classroom
               </Button>
-
-              <Button
-                variant="ghost"
-                leftIcon={<Bell className="h-4 w-4" />}
-                onClick={() =>
-                  showToast({
-                    variant: 'warning',
-                    title: 'Atenção à frequência da turma',
-                    description: '3 estudantes atingiram 74% de presença nesta semana.',
-                  })
-                }
-              >
-                Toast de Alerta
-              </Button>
-
               <Button
                 variant="danger"
-                leftIcon={<Bell className="h-4 w-4" />}
-                onClick={() =>
-                  showToast({
-                    variant: 'error',
-                    title: 'Falha ao enviar nota do simulado',
-                    description: 'A nota da redação deve estar entre 0 e 1000 pontos.',
-                  })
-                }
+                leftIcon={<Ban />}
+                onClick={() => setIsSoftDeleteOpen(true)}
               >
-                Toast de Erro
+                Inativar Cadastro
               </Button>
             </div>
-          </div>
-        </div>
-      </Card>
 
-      {/* 9. Demonstração Isolada de EmptyState */}
-      <Card
-        as="section"
-        title="9. Componente EmptyState (Visão Dedicada)"
-        subtitle="Exibido quando o usuário ainda não possui registros ou quando um filtro não encontra resultados."
-      >
-        <EmptyState
-          title="Nenhum simulado realizado neste mês"
-          description="Você ainda não tem notas lançadas para o ciclo atual de simulados do ENEM. Assim que a coordenação publicar o gabarito, seu desempenho aparecerá aqui."
-          action={
-            <Button
-              variant="primary"
-              leftIcon={<Plus className="h-5 w-5" />}
-              onClick={() =>
-                showToast({
-                  variant: 'info',
-                  title: 'Calendário de Simulados',
-                  description: 'O próximo simulado geral ocorrerá no dia 28/11 às 13h.',
-                })
+            <div className="border-t border-line pt-4">
+              <p className="eyebrow mb-2">Badges Compactos (Quadrado 8px + Borda 1px #E4E4E7)</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="progress">Matrícula Ativa</Badge>
+                <Badge variant="academic">Turma Esperança • Noite</Badge>
+                <Badge variant="assess">Simulado ENEM • 24/11</Badge>
+                <Badge variant="critical">Frequência Crítica (71%)</Badge>
+                <Badge variant="neutral">Histórico Arquivado</Badge>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card
+          className="lg:col-span-6"
+          eyebrow="4. Heurística de Nielsen — Prevenção de Erros"
+          title="Inputs Tabulares e Validação Inline"
+          subtitle="Campos de CPF, notas e horários usam JetBrains Mono e validam diretamente no campo em Vermelho (#DC2626)."
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="CPF do Estudante"
+              mono
+              required
+              value={cpfDemo}
+              onChange={(e) => setCpfDemo(e.target.value)}
+              errorText={
+                cpfDemo.replace(/\D/g, '').length !== 11
+                  ? 'O CPF deve conter 11 dígitos numéricos.'
+                  : undefined
               }
-            >
-              Ver Calendário dos Próximos Simulados
-            </Button>
+            />
+            <Select
+              label="Turno da Turma"
+              value={selectedTurn}
+              onChange={(e) => setSelectedTurn(e.target.value)}
+              options={[
+                { value: 'manha', label: 'Manhã (07h30 – 12h00)' },
+                { value: 'tarde', label: 'Tarde (13h30 – 17h30)' },
+                { value: 'noite', label: 'Noite (19h00 – 22h15)' },
+              ]}
+            />
+            <div className="sm:col-span-2">
+              <SearchBar
+                label="Filtro Rápido"
+                value={searchValue}
+                onValueChange={setSearchValue}
+              />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* 4. DataTable (Máx 6 Colunas) + SlideOverDrawer (Revelação Progressiva) */}
+      <Card
+        eyebrow="5. Lei de Hick — Controle de Carga Cognitiva"
+        title="DataTable Densa (Máx. 6 Colunas) + Slide-over Drawer em Abas"
+        subtitle="Clique em qualquer linha ou em 'Abrir Ficha' para inspecionar o SlideOverDrawer com as 5 abas acadêmicas."
+      >
+        <DataTable
+          data={DEMO_STUDENTS}
+          columns={columns}
+          getRowKey={(r) => r.id}
+          isLoading={isSkeletonDemo}
+          onRowClick={(r) => {
+            setDrawerStudent(r);
+            setDrawerTab('dados');
+          }}
+          searchPredicate={(r, q) =>
+            r.fullName.toLowerCase().includes(q) ||
+            r.enrollmentCode.toLowerCase().includes(q) ||
+            r.cpf.includes(q)
           }
         />
       </Card>
 
-      {/* Instância do Modal */}
-      <Modal
-        isOpen={isDetailsModalOpen}
-        onClose={() => setIsDetailsModalOpen(false)}
-        title="Registrar Justificativa de Ausência"
-        description="Envie uma mensagem simples para a coordenação explicando o motivo da falta."
+      {/* 5. ProgressBarGroup + StudentCard (Chamada Rápida P/F/J) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <Card
+          className="lg:col-span-6"
+          eyebrow="6. Acompanhamento de Assiduidade"
+          title="ProgressBarGroup (Meta 75%)"
+          subtitle="Marcador vertical da meta mínima e classificação semântica automática."
+        >
+          <ProgressBarGroup
+            items={[
+              {
+                id: 'aug',
+                label: 'Agosto / 2026',
+                sublabel: '21 presenças em 24 aulas',
+                value: 88,
+              },
+              {
+                id: 'sep',
+                label: 'Setembro / 2026',
+                sublabel: '19 presenças em 24 aulas',
+                value: 79,
+              },
+              {
+                id: 'oct',
+                label: 'Outubro / 2026',
+                sublabel: '17 presenças em 24 aulas',
+                value: 71,
+              },
+            ]}
+          />
+        </Card>
+
+        <Card
+          className="lg:col-span-6"
+          eyebrow="7. Lançamento em Lote (Professor)"
+          title="StudentCard com Toggle P / F / J de 1 Clique"
+          subtitle="No estado Amarelo (Justificada), o texto permanece #111111 para contraste WCAG AAA."
+        >
+          <StudentCard
+            student={DEMO_STUDENT_PERSON}
+            enrollmentCode="2026.2.0014"
+            accumulatedAttendancePercentage={71}
+            selectedPresence={presenceDemo}
+            justification={justificationDemo}
+            onChangePresence={setPresenceDemo}
+            onChangeJustification={setJustificationDemo}
+          />
+        </Card>
+      </div>
+
+      {/* 6. ScheduleMatrix com Detecção Automática de Conflito em Vermelho */}
+      <Card
+        eyebrow="8. Grade Horária Matricial (Padrão SUAP Moderno)"
+        title="ScheduleMatrix com Alerta Automático de Choque de Horário"
+        subtitle="O Prof. Carlos Eduardo está alocado em duas salas sobrepostas na Segunda à Noite (19:00–20:30 e 19:30–21:00)."
+      >
+        <ScheduleMatrix entries={DEMO_MATRIX_ENTRIES} />
+      </Card>
+
+      {/* 7. CalloutAlerts, BrandLoader, Skeletons e EmptyState */}
+      <Card
+        eyebrow="9. BrandLoader (Animação Geométrica Bauhaus 2x2)"
+        title="Carregamento com a Logo em Sentido Horário (Azul → Amarelo → Vermelho → Verde)"
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="flex flex-col items-center justify-center rounded-md bg-subtle p-6">
+            <BrandLoader variant="inline" size="sm" label="Compacto (sm)" />
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-md bg-subtle p-6">
+            <BrandLoader variant="inline" size="md" label="Carregando gráfico..." />
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-md bg-subtle p-6">
+            <BrandLoader variant="inline" size="lg" label="Carregando dados..." />
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <Card
+          className="lg:col-span-6"
+          eyebrow="9. Sinalização Contextual"
+          title="CalloutAlert nos 4 Eixos Semânticos"
+        >
+          <div className="space-y-3">
+            <CalloutAlert variant="info" title="Lista de Exercícios no Google Classroom">
+              Nova lista de Geometria Espacial publicada para a Turma Esperança.
+            </CalloutAlert>
+            <CalloutAlert variant="warning" title="3º Simulado ENEM neste Sábado (13h00)">
+              Abertura dos portões às 12h15. Traga caneta esferográfica preta.
+            </CalloutAlert>
+            <CalloutAlert variant="error" title="Frequência acumulada abaixo de 75%">
+              Agende conversa de acolhimento com a coordenação pedagógica.
+            </CalloutAlert>
+          </div>
+        </Card>
+
+        <div className="lg:col-span-6 space-y-4">
+          <EmptyState
+            title="Nenhuma avaliação lançada neste filtro"
+            description="Você pode cadastrar um novo simulado ENEM ou limpar os filtros ativos."
+            action={
+              <Button
+                variant="primary"
+                leftIcon={<Sparkles />}
+                onClick={() =>
+                  showToast({
+                    variant: 'info',
+                    title: 'Empty State Acionável',
+                    description: 'Sempre orienta o próximo passo ao usuário.',
+                  })
+                }
+              >
+                Cadastrar Simulado ENEM
+              </Button>
+            }
+          />
+          {isSkeletonDemo && (
+            <>
+              <SkeletonCard lines={3} />
+              <SkeletonTable rows={3} columns={4} />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* SlideOverDrawer — Revelação Progressiva com as 5 Abas Acadêmicas */}
+      <SlideOverDrawer
+        isOpen={Boolean(drawerStudent)}
+        onClose={() => setDrawerStudent(null)}
+        eyebrow={drawerStudent ? `Matrícula ${drawerStudent.enrollmentCode}` : undefined}
+        title={drawerStudent?.fullName ?? 'Ficha Acadêmica'}
+        subtitle={drawerStudent?.turma}
+        headerBadge={
+          drawerStudent ? (
+            <Badge variant={drawerStudent.attendance < 75 ? 'critical' : 'progress'}>
+              Frequência {drawerStudent.attendance}%
+            </Badge>
+          ) : undefined
+        }
+        tabs={[
+          { id: 'dados', label: 'Dados Pessoais' },
+          { id: 'matriculas', label: 'Matrículas', badgeCount: 1 },
+          { id: 'frequencia', label: 'Frequência' },
+          { id: 'boletins', label: 'Boletins ENEM', badgeCount: 3 },
+          { id: 'historico', label: 'Histórico' },
+        ]}
+        activeTabId={drawerTab}
+        onTabChange={setDrawerTab}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setIsDetailsModalOpen(false)}>
-              Cancelar
+            <Button variant="secondary" onClick={() => setDrawerStudent(null)}>
+              Fechar
             </Button>
             <Button
-              variant="primary"
-              leftIcon={<CheckCircle2 className="h-4 w-4" />}
+              variant="danger"
               onClick={() => {
-                setIsDetailsModalOpen(false);
-                showToast({
-                  variant: 'success',
-                  title: 'Justificativa enviada para a coordenação!',
-                  description: 'A equipe pedagógica atualizará o registro de presença.',
-                });
+                setDrawerStudent(null);
+                setIsSoftDeleteOpen(true);
               }}
             >
-              Enviar Justificativa
+              Inativar Matrícula
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
-          <Input
-            label="Data da aula em que esteve ausente"
-            type="date"
-            defaultValue="2026-11-18"
-            required
-          />
-          <Select
-            label="Motivo principal da ausência"
-            required
-            defaultValue="trabalho"
-            options={[
-              { value: 'saude', label: 'Consulta médica ou questão de saúde' },
-              { value: 'trabalho', label: 'Horário de trabalho ou entrevista de emprego' },
-              { value: 'transporte', label: 'Dificuldade com ônibus / transporte público' },
-              { value: 'familia', label: 'Apoio a familiar em casa' },
-            ]}
-          />
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Fique tranquilo(a): nosso objetivo é apoiar sua caminhada até o ENEM e disponibilizar o resumo da aula perdida.
-          </p>
-        </div>
+        {drawerStudent && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 rounded border border-line bg-paper p-4">
+              <div>
+                <span className="eyebrow">CPF</span>
+                <p className="num mt-1 text-sm font-semibold text-ink">{drawerStudent.cpf}</p>
+              </div>
+              <div>
+                <span className="eyebrow">Média Último Simulado</span>
+                <p className="num mt-1 text-sm font-semibold text-ink">
+                  {drawerStudent.lastEnemScore} / 1000 pts
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-ink-muted">
+              Aba ativa no Drawer: <strong className="text-ink uppercase">{drawerTab}</strong>. O
+              SlideOverDrawer mantém a tabela principal enxuta (máx. 6 colunas) e exibe dados
+              completos sob demanda.
+            </p>
+          </div>
+        )}
+      </SlideOverDrawer>
+
+      {/* Modal Padrão */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Exemplo de Modal Estrutural"
+        description="Trap de foco ativo, fechamento via Esc e borda 1px #E4E4E7 sem sombras pesadas."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" onClick={() => setIsModalOpen(false)}>
+              Confirmar
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink">
+          Todos os diálogos seguem a superfície <code className="num">#FFFFFF</code> com foco
+          monocromático de alto contraste.
+        </p>
       </Modal>
 
-      {/* Instância do ConfirmDialog */}
+      {/* ConfirmDialog — Soft Delete Seguro em Vermelho (#DC2626) */}
       <ConfirmDialog
-        isOpen={isConfirmDialogOpen}
-        onClose={() => setIsConfirmDialogOpen(false)}
+        isOpen={isSoftDeleteOpen}
+        onClose={() => setIsSoftDeleteOpen(false)}
         onConfirm={() => {
-          setIsConfirmDialogOpen(false);
+          setIsSoftDeleteOpen(false);
           showToast({
             variant: 'warning',
-            title: 'Inscrição no simulado cancelada',
-            description: 'Você pode se inscrever novamente até sexta-feira às 20h.',
+            title: 'Status alterado para Inativo',
+            description: 'O histórico acadêmico foi integralmente preservado (Soft Delete).',
           });
         }}
         variant="danger"
-        title="Deseja cancelar a participação no 5º Simulado?"
-        description="Você está prestes a liberar a vaga reservada para Mariana Oliveira Santos no simulado presencial deste sábado."
-        consequenceNote="Ao cancelar, o caderno de questões impresso será destinado a outro estudante da lista de espera."
-        confirmLabel="Sim, cancelar participação"
-        cancelLabel="Manter minha inscrição"
+        title="Alterar status do cadastro para Inativo?"
+        description="No Bonsucesso+, nenhum estudante, professor ou disciplina é excluído fisicamente do banco."
+        consequenceNote="O status mudará para Inativo preservando todo o histórico de frequência, notas de simulados e matrículas."
+        confirmLabel="Confirmar Inativação"
+        cancelLabel="Manter Ativo"
       />
     </div>
   );

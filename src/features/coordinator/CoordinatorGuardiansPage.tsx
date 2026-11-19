@@ -9,13 +9,11 @@ import {
   Save,
   Trash2,
   UserPlus,
-  Users,
 } from 'lucide-react';
 import {
   Badge,
   Button,
   CalloutAlert,
-  Card,
   ConfirmDialog,
   Input,
   Modal,
@@ -304,15 +302,10 @@ export const CoordinatorGuardiansPage: React.FC = () => {
         sortAccessor: (r) => getDisplayName(r.person),
         renderCell: (row) => (
           <div>
-            <p className="text-base font-extrabold text-slate-900 dark:text-white">
+            <p className="text-sm font-semibold text-ink">
               {getDisplayName(row.person)}
             </p>
-            {row.person.socialName && (
-              <span className="block text-xs text-slate-500">
-                Nome civil: {row.person.fullName}
-              </span>
-            )}
-            <span className="block text-xs font-mono text-slate-600 dark:text-slate-400">
+            <span className="num block text-xs text-ink-muted">
               CPF: {row.person.cpf}
             </span>
           </div>
@@ -323,12 +316,12 @@ export const CoordinatorGuardiansPage: React.FC = () => {
         header: 'Telefone e E-mail',
         renderCell: (row) => (
           <div className="text-xs sm:text-sm space-y-0.5">
-            <p className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
-              <Phone className="h-3.5 w-3.5 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+            <p className="flex items-center gap-1.5 font-bold text-slate-800">
+              <Phone className="h-3.5 w-3.5 text-primary-700" aria-hidden="true" />
               <span>{row.person.phone}</span>
             </p>
-            <p className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-              <Mail className="h-3.5 w-3.5 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+            <p className="flex items-center gap-1.5 text-slate-600">
+              <Mail className="h-3.5 w-3.5 text-primary-700" aria-hidden="true" />
               <span>{row.person.email}</span>
             </p>
           </div>
@@ -387,52 +380,34 @@ export const CoordinatorGuardiansPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<Users className="h-4 w-4" />}>
-            Acompanhamento Familiar & Vínculos (UC09)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Gestão de Pais e Responsáveis
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Cadastre pais, mães, avós ou responsáveis legais e gerencie o vínculo com um ou mais
-            estudantes do cursinho. As alterações refletem imediatamente no Portal da Família.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Responsáveis</h1>
 
         <Button
           variant="primary"
-          size="lg"
-          leftIcon={<UserPlus className="h-5 w-5" />}
+          leftIcon={<UserPlus className="h-4 w-4" />}
           onClick={handleOpenCreateModal}
         >
-          Cadastrar Responsável
+          Novo Responsável
         </Button>
       </div>
 
-      {/* DataTable de Responsáveis */}
-      <Card
-        title="Relação de Responsáveis Familiares"
-        subtitle="Clique em 'Vincular / Gerenciar Alunos' para adicionar ou remover estudantes sob acompanhamento."
-      >
-        <DataTable
-          data={guardianRows}
-          columns={columns}
-          getRowKey={(r) => r.person.id}
-          searchLabel="Buscar responsável por Nome, CPF, Telefone ou Nome do Aluno vinculado"
-          searchPlaceholder="Ex: Dona Helena, Sebastião, Mariana, Lucas..."
-          searchPredicate={(row, q) =>
-            row.person.fullName.toLowerCase().includes(q) ||
-            (row.person.socialName?.toLowerCase().includes(q) ?? false) ||
-            row.person.cpf.toLowerCase().includes(q) ||
-            row.links.some((l) =>
-              getDisplayName(l.student).toLowerCase().includes(q)
-            )
-          }
-        />
-      </Card>
+      <DataTable
+        data={guardianRows}
+        columns={columns}
+        getRowKey={(r) => r.person.id}
+        searchLabel="Pesquisar"
+        searchPlaceholder="Nome, CPF ou estudante vinculado..."
+        searchPredicate={(row, q) =>
+          row.person.fullName.toLowerCase().includes(q) ||
+          (row.person.socialName?.toLowerCase().includes(q) ?? false) ||
+          row.person.cpf.toLowerCase().includes(q) ||
+          row.links.some((l) =>
+            getDisplayName(l.student).toLowerCase().includes(q)
+          )
+        }
+      />
 
       {/* MODAL PARA VINCULAR / DESVINCULAR ESTUDANTES A UM RESPONSÁVEL */}
       <Modal
@@ -455,7 +430,7 @@ export const CoordinatorGuardiansPage: React.FC = () => {
           <div className="space-y-6">
             {/* Lista de Estudantes Atualmente Vinculados */}
             <div className="space-y-3">
-              <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+              <h4 className="text-base font-extrabold text-slate-900">
                 Estudantes Atualmente Vinculados ({currentLinkingRow.links.length})
               </h4>
 
@@ -466,18 +441,18 @@ export const CoordinatorGuardiansPage: React.FC = () => {
                     return (
                       <div
                         key={responsibility.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4"
                       >
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                            <span className="text-base font-extrabold text-slate-900">
                               {studentName}
                             </span>
                             <Badge variant="primary">
                               Parentesco: {responsibility.relationship}
                             </Badge>
                           </div>
-                          <div className="flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
+                          <div className="flex flex-wrap gap-2 text-xs text-slate-600">
                             <span>
                               Contato Principal:{' '}
                               <strong>
@@ -525,9 +500,9 @@ export const CoordinatorGuardiansPage: React.FC = () => {
             {/* Formulário para Adicionar Novo Vínculo */}
             <form
               onSubmit={handleAddStudentLink}
-              className="space-y-4 rounded-2xl border-2 border-primary-200 bg-primary-50/40 p-4 dark:border-primary-800 dark:bg-primary-950/30"
+              className="space-y-4 rounded-2xl border-2 border-primary-200 bg-primary-50/40 p-4"
             >
-              <h4 className="flex items-center gap-2 text-base font-extrabold text-primary-950 dark:text-primary-200">
+              <h4 className="flex items-center gap-2 text-base font-extrabold text-primary-950">
                 <HeartHandshake className="h-5 w-5" aria-hidden="true" />
                 <span>Vincular Novo Estudante a {getDisplayName(linkingGuardian)}</span>
               </h4>
@@ -567,26 +542,26 @@ export const CoordinatorGuardiansPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1">
-                <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-slate-300 bg-white p-3">
                   <input
                     type="checkbox"
                     checked={isPrimaryContactToLink}
                     onChange={(e) => setIsPrimaryContactToLink(e.target.checked)}
                     className="h-5 w-5 rounded accent-primary-700"
                   />
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  <span className="text-sm font-bold text-slate-900">
                     É o responsável principal para emergências
                   </span>
                 </label>
 
-                <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-slate-300 bg-white p-3">
                   <input
                     type="checkbox"
                     checked={receivesAcademicInfoToLink}
                     onChange={(e) => setReceivesAcademicInfoToLink(e.target.checked)}
                     className="h-5 w-5 rounded accent-primary-700"
                   />
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  <span className="text-sm font-bold text-slate-900">
                     Recebe informações de frequência e simulados
                   </span>
                 </label>

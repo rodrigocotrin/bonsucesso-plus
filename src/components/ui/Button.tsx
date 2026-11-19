@@ -2,8 +2,8 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '../../utils/formatters';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-export type ButtonSize = 'md' | 'lg';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'academic';
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -17,23 +17,26 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary-700 text-white hover:bg-primary-800 active:bg-primary-900 dark:bg-primary-600 dark:hover:bg-primary-500 shadow-sm border border-transparent',
+    'bg-cta text-cta-fg border border-cta hover:bg-cta-hover hover:border-cta-hover',
   secondary:
-    'bg-secondary-700 text-white hover:bg-secondary-800 active:bg-secondary-900 dark:bg-secondary-600 dark:hover:bg-secondary-500 shadow-sm border border-transparent',
+    'bg-surface text-ink border border-line hover:bg-subtle hover:border-ink/40',
   ghost:
-    'bg-white text-slate-800 border-2 border-slate-300 hover:bg-slate-100 hover:border-slate-400 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-800',
+    'bg-transparent text-ink-muted border border-transparent hover:bg-subtle hover:text-ink',
   danger:
-    'bg-danger-700 text-white hover:bg-danger-800 active:bg-danger-900 dark:bg-danger-600 dark:hover:bg-danger-500 shadow-sm border border-transparent',
+    'bg-critical-bg text-critical border border-transparent hover:bg-critical hover:text-white',
+  academic:
+    'bg-academic-bg text-academic border border-transparent hover:bg-academic hover:text-white',
 };
 
 const SIZE_STYLES: Record<ButtonSize, string> = {
-  md: 'min-h-[44px] min-w-[44px] px-4 py-2.5 text-base',
-  lg: 'min-h-[52px] min-w-[52px] px-6 py-3 text-lg',
+  sm: 'h-9 px-3 text-xs gap-1.5',
+  md: 'h-11 sm:h-10 px-4 text-sm gap-2',
+  lg: 'h-11 px-5 text-sm gap-2',
+  icon: 'h-10 w-10 p-0',
 };
 
 /**
- * Componente Button do Design System IntegraCurso.
- * Garante área mínima de toque de 44x44px (WCAG 2.1), alto contraste e estado de carregamento acessível.
+ * Botão com feedback tátil instantâneo (150ms ease-out + active:scale-[0.98]).
  */
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
@@ -41,7 +44,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant = 'primary',
       size = 'md',
       isLoading = false,
-      loadingText = 'Processando...',
+      loadingText,
       leftIcon,
       rightIcon,
       fullWidth = false,
@@ -60,11 +63,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         type={type}
         disabled={isDisabled}
-        aria-busy={isLoading}
-        aria-disabled={isDisabled}
+        aria-busy={isLoading || undefined}
         className={cn(
-          'inline-flex items-center justify-center gap-2.5 rounded-xl font-semibold transition-all duration-150 select-none',
-          'disabled:opacity-60 disabled:cursor-not-allowed',
+          'inline-flex shrink-0 select-none items-center justify-center rounded-md font-medium',
+          'transition-all duration-150 ease-out active:scale-[0.98]',
+          'disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100',
           VARIANT_STYLES[variant],
           SIZE_STYLES[size],
           fullWidth && 'w-full',
@@ -74,19 +77,21 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin shrink-0" aria-hidden="true" />
-            <span>{loadingText || children}</span>
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+            <span>{loadingText ?? children}</span>
           </>
         ) : (
           <>
             {leftIcon && (
-              <span className="shrink-0 flex items-center" aria-hidden="true">
+              <span className="flex shrink-0 items-center justify-center [&>svg]:h-4 [&>svg]:w-4" aria-hidden="true">
                 {leftIcon}
               </span>
             )}
-            <span>{children}</span>
+            {children !== undefined && children !== null && children !== false && (
+              <span className={cn('leading-none', size === 'icon' && 'sr-only')}>{children}</span>
+            )}
             {rightIcon && (
-              <span className="shrink-0 flex items-center" aria-hidden="true">
+              <span className="flex shrink-0 items-center justify-center [&>svg]:h-4 [&>svg]:w-4" aria-hidden="true">
                 {rightIcon}
               </span>
             )}

@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Bell,
   BookOpen,
   Calendar,
   CalendarCheck,
@@ -14,13 +13,11 @@ import {
   GraduationCap,
   HelpCircle,
   MapPin,
-  Sparkles,
   Video,
 } from 'lucide-react';
 import {
   Badge,
   Button,
-  CalloutAlert,
   Card,
   MetricCard,
 } from '../../components/ui';
@@ -30,6 +27,7 @@ import { useToast } from '../../contexts/ToastContext';
 import {
   evaluateAttendanceStatus,
   formatDateBR,
+  getDisplayName,
 } from '../../utils/formatters';
 import {
   STUDENT_ANNOUNCEMENTS_FEED,
@@ -47,12 +45,9 @@ export const StudentDashboardPage: React.FC = () => {
 
   if (!currentPerson) return null;
 
-  // Saudação usando Nome Social (quando preenchido) ou Primeiro Nome
+  // Saudação usando Nome Social prioritário (getDisplayName)
   const greetingName = useMemo(() => {
-    if (currentPerson.socialName && currentPerson.socialName.trim().length > 0) {
-      return currentPerson.socialName.trim();
-    }
-    return currentPerson.fullName.split(' ')[0];
+    return getDisplayName(currentPerson);
   }, [currentPerson]);
 
   // Matrícula, Turma e Período Letivo do Aluno
@@ -91,13 +86,27 @@ export const StudentDashboardPage: React.FC = () => {
   const attendancePercentage = getStudentAttendancePercentage(currentPerson.id);
   const attendanceEval = evaluateAttendanceStatus(attendancePercentage);
 
-  // Próxima Aula do Dia
+  // Próxima Aula do Dia + Link do Google Classroom
   const nextLessonSlot = useMemo(
     () =>
       STUDENT_TODAY_TIMELINE.find((slot) => slot.type === 'lesson' && slot.isNextHighlight) ??
       STUDENT_TODAY_TIMELINE[0],
     []
   );
+
+  const nextLessonClassroomUrl = useMemo(() => {
+    const matchedSubject = db.subjects.find(
+      (s) => s.name === nextLessonSlot.subjectName
+    );
+    const classSubject = matchedSubject
+      ? db.classSubjects.find(
+          (cs) =>
+            cs.subjectId === matchedSubject.id &&
+            cs.classRoomId === studentClassRoom?.id
+        )
+      : undefined;
+    return classSubject?.classroomUrl ?? 'https://classroom.google.com';
+  }, [db.subjects, db.classSubjects, nextLessonSlot.subjectName, studentClassRoom?.id]);
 
   // Último Aviso
   const latestAnnouncement = STUDENT_ANNOUNCEMENTS_FEED[0];
@@ -123,128 +132,101 @@ export const StudentDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* 1. BANNER DE SAUDAÇÃO ACOLHEDORA */}
+      {/* 1. CABEÇALHO ENXUTO (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1>Olá, {greetingName}</h1>
+          <p className="text-xs text-ink-muted">
+            {studentClassRoom?.name ?? 'Turma Esperança • Noite'} •{' '}
+            {currentPeriod?.name ?? '2º semestre de 2026'}
+          </p>
+        </div>
+
+        <Link
+          to="/aluno/aulas"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-cta px-4 text-sm font-medium text-cta-fg transition-all duration-150 ease-out hover:bg-cta-hover active:scale-[0.98]"
+        >
+          <CalendarCheck className="h-4 w-4" aria-hidden="true" />
+          <span>Grade Semanal</span>
+        </Link>
+      </div>
+
+      {/* CARD "PRÓXIMA AULA" EM DESTAQUE NO TOPO (ALUNO MOBILE < 768px — Requisito 3) */}
       <section
-        aria-labelledby="student-welcome-heading"
-        className="rounded-2xl border-2 border-primary-200 bg-gradient-to-br from-primary-50 via-white to-secondary-50/50 p-5 sm:p-6 dark:border-primary-800/80 dark:from-primary-950/70 dark:via-slate-900 dark:to-secondary-950/40"
+        aria-label="Próxima aula do dia"
+        className="rounded-lg border border-academic-border bg-surface p-4 md:hidden"
       >
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="primary" icon={<Sparkles className="h-4 w-4" />}>
-                {studentClassRoom?.name ?? 'Turma Esperança • Noite'}
-              </Badge>
-              <Badge variant="neutral">
-                Período Letivo: {currentPeriod?.name ?? '2º semestre de 2026'}
-              </Badge>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="academic">Próxima Aula</Badge>
+              <span className="num text-xs font-semibold text-ink">
+                {nextLessonSlot.startTime}–{nextLessonSlot.endTime}
+              </span>
             </div>
-
-            <h1
-              id="student-welcome-heading"
-              className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white"
-            >
-              Olá, {greetingName}! Que bom ter você aqui hoje.
-            </h1>
-
-            <p className="text-base text-slate-700 dark:text-slate-200 max-w-2xl">
-              <strong>Aprender transforma.</strong> Pequenos passos todos os dias fazem diferença na sua
-              caminhada até o ENEM. Veja abaixo o que preparamos para organizar seus estudos sem correria.
+            <h2 className="text-base font-bold text-ink">
+              {nextLessonSlot.subjectName ?? 'Matemática'}
+            </h2>
+            <p className="text-xs text-ink-muted">
+              {nextLessonSlot.teacherName ?? 'Prof. Carlos Eduardo'} •{' '}
+              {nextLessonSlot.roomLabel ?? 'Sala 01'}
             </p>
           </div>
-
-          <div className="flex flex-wrap gap-3 shrink-0">
-            <Link
-              to="/aluno/aulas"
-              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-base font-bold text-white shadow-xs hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-500 transition-colors"
-            >
-              <CalendarCheck className="h-5 w-5" aria-hidden="true" />
-              <span>Ver Grade da Semana</span>
-            </Link>
-          </div>
         </div>
+
+        <a
+          href={nextLessonClassroomUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-academic px-4 py-2.5 text-xs font-semibold text-white transition-all duration-150 ease-out hover:opacity-95 active:scale-[0.98]"
+        >
+          <BookOpen className="h-4 w-4" aria-hidden="true" />
+          <span>Abrir no Google Classroom</span>
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+        </a>
       </section>
 
-      {/* Alerta acolhedor se a frequência estiver abaixo de 75% */}
-      {attendanceEval.status === 'critical' && (
-        <CalloutAlert
-          variant="warning"
-          title="Sua presença importa para nós — estamos juntos nessa caminhada!"
-          action={
-            <Link
-              to="/aluno/desempenho"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-            >
-              <span>Ver minha frequência</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          }
-        >
-          Sua presença atual está em <strong>{attendancePercentage}%</strong> ({attendedCount} de{' '}
-          {totalRecordedClasses} aulas registradas). Se estiver enfrentando alguma dificuldade com
-          transporte ou horário de trabalho, converse com a coordenação — queremos apoiar você e
-          separar os resumos das aulas perdidas.
-        </CalloutAlert>
-      )}
-
-      {/* 2. OS 4 KPI CARDS SUPERIORES */}
-      <section aria-label="Resumo rápido do seu dia">
+      {/* 2. OS 4 KPI CARDS ULTRA-LIMPOS (Máx 3 elementos — Regra 2) */}
+      <section aria-label="Resumo do dia">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             title="Frequência Atual"
             value={attendancePercentage}
             scale="percentage"
-            accentColor={attendanceEval.status === 'critical' ? 'danger' : 'success'}
-            icon={<CalendarCheck className="h-6 w-6" />}
+            accentColor={attendanceEval.status === 'critical' ? 'critical' : 'progress'}
             statusBadge={{
-              label: attendanceEval.status === 'critical' ? 'Atenção (<75%)' : 'Em dia',
+              label: `${attendedCount}/${totalRecordedClasses} presenças`,
               variant: attendanceEval.status === 'critical' ? 'danger' : 'success',
             }}
-            subtitle={`${attendedCount} presenças em ${totalRecordedClasses} aulas registradas no semestre.`}
           />
 
           <MetricCard
-            title="Próxima Aula de Hoje"
+            title="Próxima Aula"
             value={nextLessonSlot.subjectName ?? 'Matemática'}
-            scale="raw"
-            accentColor="primary"
-            icon={<Clock className="h-6 w-6" />}
-            statusBadge={{
-              label: `${nextLessonSlot.startTime} às ${nextLessonSlot.endTime}`,
-              variant: 'primary',
-            }}
-            subtitle={`${nextLessonSlot.roomLabel ?? 'Sala 01 — Térreo'} • ${
-              nextLessonSlot.teacherName ?? 'Prof. Carlos'
+            accentColor="academic"
+            subtitle={`${nextLessonSlot.startTime}–${nextLessonSlot.endTime} • ${
+              nextLessonSlot.roomLabel ?? 'Sala 01'
             }`}
           />
 
           <MetricCard
-            title="Último Aviso"
-            value="4º Simulado ENEM"
-            scale="raw"
-            accentColor="secondary"
-            icon={<Bell className="h-6 w-6" />}
-            statusBadge={{
-              label: 'Novo',
-              variant: 'secondary',
-            }}
-            subtitle={`${latestAnnouncement.title} (${formatDateBR(latestAnnouncement.date)})`}
+            title="Próximo Simulado"
+            value="24/11"
+            accentColor="assess"
+            subtitle={latestAnnouncement.title}
           />
 
           <MetricCard
-            title="Tarefas Pendentes"
+            title="Atividades Pendentes"
             value={
               remainingTasksCount === 0
-                ? 'Tudo em dia!'
-                : `${remainingTasksCount} ${remainingTasksCount === 1 ? 'atividade' : 'atividades'}`
+                ? '0 pendentes'
+                : `${remainingTasksCount} ${
+                    remainingTasksCount === 1 ? 'atividade' : 'atividades'
+                  }`
             }
-            scale="raw"
-            accentColor={remainingTasksCount > 0 ? 'warning' : 'success'}
-            icon={<CheckCircle2 className="h-6 w-6" />}
-            statusBadge={{
-              label: remainingTasksCount > 0 ? 'Foco da semana' : 'Concluído',
-              variant: remainingTasksCount > 0 ? 'warning' : 'success',
-            }}
-            subtitle="Pequenos passos fazem diferença na sua preparação."
+            accentColor={remainingTasksCount > 0 ? 'assess' : 'progress'}
+            subtitle={remainingTasksCount > 0 ? 'Entregas da semana' : 'Tudo em dia'}
           />
         </div>
       </section>
@@ -260,34 +242,34 @@ export const StudentDashboardPage: React.FC = () => {
             headerAction={
               <Link
                 to="/aluno/aulas"
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold text-primary-800 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/60"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold text-primary-800 hover:bg-primary-50"
               >
                 <span>Grade completa</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             }
           >
-            <ol className="relative border-l-4 border-primary-200 dark:border-primary-800 ml-3 space-y-5">
+            <ol className="relative border-l-4 border-primary-200 ml-3 space-y-5">
               {STUDENT_TODAY_TIMELINE.map((slot) => {
                 if (slot.type === 'break') {
                   return (
                     <li key={slot.id} className="ml-6">
                       <span
-                        className="absolute -left-3.5 flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-800 ring-4 ring-white dark:bg-amber-900 dark:text-amber-200 dark:ring-slate-900"
+                        className="absolute -left-3.5 flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-800 ring-4 ring-white"
                         aria-hidden="true"
                       >
                         <Coffee className="h-3.5 w-3.5" />
                       </span>
-                      <div className="rounded-xl border border-dashed border-amber-400/70 bg-amber-50/70 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
+                      <div className="rounded-xl border border-dashed border-amber-400/70 bg-amber-50/70 px-4 py-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                          <span className="text-sm font-bold text-amber-900">
                             Intervalo e Lanche Comunitário
                           </span>
-                          <span className="text-xs font-extrabold text-amber-800 dark:text-amber-300">
+                          <span className="text-xs font-extrabold text-amber-800">
                             {slot.startTime} às {slot.endTime}
                           </span>
                         </div>
-                        <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                        <p className="mt-1 text-sm text-slate-700">
                           {slot.topic}
                         </p>
                       </div>
@@ -298,10 +280,10 @@ export const StudentDashboardPage: React.FC = () => {
                 return (
                   <li key={slot.id} className="ml-6">
                     <span
-                      className={`absolute -left-3.5 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white dark:ring-slate-900 ${
+                      className={`absolute -left-3.5 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white ${
                         slot.isNextHighlight
                           ? 'bg-primary-700 text-white'
-                          : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                          : 'bg-slate-200 text-slate-700'
                       }`}
                       aria-hidden="true"
                     >
@@ -311,32 +293,32 @@ export const StudentDashboardPage: React.FC = () => {
                     <div
                       className={`rounded-2xl border-2 p-4 transition-all ${
                         slot.isNextHighlight
-                          ? 'border-primary-600 bg-primary-50/60 shadow-xs dark:border-primary-500 dark:bg-primary-950/40'
-                          : 'border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/60'
+                          ? 'border-primary-600 bg-primary-50/60 shadow-xs'
+                          : 'border-slate-200 bg-slate-50/60'
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-lg font-extrabold text-slate-900 dark:text-white">
+                          <span className="text-lg font-extrabold text-slate-900">
                             {slot.subjectName}
                           </span>
                           {slot.isNextHighlight && (
                             <Badge variant="primary">Próxima Aula</Badge>
                           )}
                         </div>
-                        <span className="text-sm font-extrabold text-primary-900 dark:text-primary-200">
+                        <span className="text-sm font-extrabold text-primary-900">
                           {slot.startTime} às {slot.endTime}
                         </span>
                       </div>
 
-                      <p className="mt-1.5 text-base font-medium text-slate-800 dark:text-slate-100">
+                      <p className="mt-1.5 text-base font-medium text-slate-800">
                         Tema de hoje: {slot.topic}
                       </p>
 
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
                         <span>{slot.teacherName}</span>
                         <span className="inline-flex items-center gap-1 font-semibold">
-                          <MapPin className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                          <MapPin className="h-4 w-4 text-primary-700" aria-hidden="true" />
                           {slot.roomLabel}
                         </span>
                       </div>
@@ -355,7 +337,7 @@ export const StudentDashboardPage: React.FC = () => {
             headerAction={
               <Link
                 to="/aluno/materias"
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-primary-50 px-3.5 py-2 text-sm font-bold text-primary-900 hover:bg-primary-100 dark:bg-primary-950 dark:text-primary-200 dark:hover:bg-primary-900"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-primary-50 px-3.5 py-2 text-sm font-bold text-primary-900 hover:bg-primary-100"
               >
                 <span>Ver todos os materiais</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -366,11 +348,11 @@ export const StudentDashboardPage: React.FC = () => {
               {STUDENT_STUDY_MATERIALS.slice(0, 3).map((material) => (
                 <div
                   key={material.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
                 >
                   <div className="flex items-start gap-3">
                     <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary-800 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-primary-300"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary-800 border border-slate-200"
                       aria-hidden="true"
                     >
                       {material.type === 'video' ? (
@@ -381,15 +363,15 @@ export const StudentDashboardPage: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-primary-800 dark:text-primary-300">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-primary-800">
                           {material.subjectName} • {material.typeLabel}
                         </span>
                         {material.isNew && <Badge variant="success">Novo</Badge>}
                       </div>
-                      <h4 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
+                      <h4 className="text-base font-bold text-slate-900 mt-0.5">
                         {material.title}
                       </h4>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                      <p className="text-xs text-slate-600 mt-0.5">
                         {material.teacherName} • Publicado em {formatDateBR(material.postedAt)}
                       </p>
                     </div>
@@ -400,7 +382,7 @@ export const StudentDashboardPage: React.FC = () => {
                       href={material.externalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-xl border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+                      className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-xl border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100"
                     >
                       <BookOpen className="h-4 w-4" aria-hidden="true" />
                       <span>Abrir material</span>
@@ -438,12 +420,12 @@ export const StudentDashboardPage: React.FC = () => {
                     key={task.id}
                     className={`rounded-xl border p-3.5 transition-colors ${
                       isDone
-                        ? 'border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20'
-                        : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+                        ? 'border-emerald-300 bg-emerald-50/50'
+                        : 'border-slate-200 bg-white'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600">
                         {task.subjectName}
                       </span>
                       <Badge variant={badgeVariant}>
@@ -454,8 +436,8 @@ export const StudentDashboardPage: React.FC = () => {
                     <p
                       className={`mt-1.5 text-base font-bold ${
                         isDone
-                          ? 'line-through text-slate-500 dark:text-slate-400'
-                          : 'text-slate-900 dark:text-white'
+                          ? 'line-through text-slate-500'
+                          : 'text-slate-900'
                       }`}
                     >
                       {task.title}
@@ -480,7 +462,7 @@ export const StudentDashboardPage: React.FC = () => {
           {/* Card destacado "Nosso Próximo Encontro" */}
           <Card
             as="section"
-            className="border-2 border-secondary-600 dark:border-secondary-500 bg-secondary-50/40 dark:bg-secondary-950/30"
+            className="border-2 border-secondary-600 bg-secondary-50/40"
             title="Nosso Próximo Encontro Especial"
             subtitle="Momento importante para treinar tempo de prova e redação com tranquilidade."
             headerAction={
@@ -490,26 +472,26 @@ export const StudentDashboardPage: React.FC = () => {
             }
           >
             <div className="space-y-3">
-              <h4 className="text-lg font-extrabold text-slate-900 dark:text-white">
+              <h4 className="text-lg font-extrabold text-slate-900">
                 4º Simulado Comunitário Geral (Modelo ENEM)
               </h4>
 
-              <div className="space-y-1.5 text-sm text-slate-700 dark:text-slate-200">
+              <div className="space-y-1.5 text-sm text-slate-700">
                 <p className="flex items-center gap-2 font-semibold">
-                  <Calendar className="h-4 w-4 text-secondary-700 dark:text-secondary-400 shrink-0" aria-hidden="true" />
+                  <Calendar className="h-4 w-4 text-secondary-700 shrink-0" aria-hidden="true" />
                   <span>Sábado, 28 de Novembro de 2026 • das 13h00 às 18h30</span>
                 </p>
                 <p className="flex items-center gap-2 font-semibold">
-                  <MapPin className="h-4 w-4 text-secondary-700 dark:text-secondary-400 shrink-0" aria-hidden="true" />
+                  <MapPin className="h-4 w-4 text-secondary-700 shrink-0" aria-hidden="true" />
                   <span>Todas as salas do Cursinho Comunitário Bonsucesso</span>
                 </p>
               </div>
 
-              <div className="rounded-xl bg-white p-3.5 border border-secondary-200 dark:bg-slate-900 dark:border-secondary-800 text-sm space-y-1">
-                <p className="font-bold text-secondary-900 dark:text-secondary-200">
+              <div className="rounded-xl bg-white p-3.5 border border-secondary-200 text-sm space-y-1">
+                <p className="font-bold text-secondary-900">
                   O que levar no dia:
                 </p>
-                <ul className="list-disc list-inside text-slate-700 dark:text-slate-300 space-y-0.5">
+                <ul className="list-disc list-inside text-slate-700 space-y-0.5">
                   <li>Caneta esferográfica de tinta preta em material transparente</li>
                   <li>Documento oficial com foto e sua garrafinha de água</li>
                   <li>Lanche gratuito servido na copa do cursinho antes do início</li>
@@ -518,7 +500,7 @@ export const StudentDashboardPage: React.FC = () => {
 
               <Link
                 to="/aluno/eventos"
-                className="inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-secondary-700 px-4 py-2.5 text-base font-bold text-white hover:bg-secondary-800 dark:bg-secondary-600 dark:hover:bg-secondary-500 transition-colors"
+                className="inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-secondary-700 px-4 py-2.5 text-base font-bold text-white hover:bg-secondary-800 transition-colors"
               >
                 <Calendar className="h-5 w-5" aria-hidden="true" />
                 <span>Ver todos os Eventos e Avisos</span>
@@ -527,25 +509,25 @@ export const StudentDashboardPage: React.FC = () => {
           </Card>
 
           {/* Bloco discreto "Precisa de ajuda?" */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 flex items-start gap-3.5">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-start gap-3.5">
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-800 dark:bg-primary-950 dark:text-primary-300"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-800"
               aria-hidden="true"
             >
               <HelpCircle className="h-5 w-5" />
             </div>
             <div className="space-y-1 text-sm">
-              <h3 className="font-bold text-slate-900 dark:text-white">
+              <h3 className="font-bold text-slate-900">
                 Precisa de ajuda para navegar?
               </h3>
-              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+              <p className="text-slate-600 leading-relaxed">
                 Use o menu lateral (ou a barra na parte de baixo do celular) para abrir{' '}
                 <strong>Minhas Aulas</strong>, baixar apostilas em <strong>Meus Materiais</strong> ou
                 acompanhar suas notas em <strong>Meu Desempenho</strong>. Para aumentar o tamanho da
                 letra, acesse{' '}
                 <Link
                   to="/aluno/configuracoes"
-                  className="font-bold text-primary-800 underline dark:text-primary-300"
+                  className="font-bold text-primary-800 underline"
                 >
                   Configurações
                 </Link>

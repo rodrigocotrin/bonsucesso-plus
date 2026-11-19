@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Calendar,
   Clock,
   FilePenLine,
   MapPin,
@@ -8,7 +7,6 @@ import {
   RefreshCw,
   Save,
   Sparkles,
-  Users,
 } from 'lucide-react';
 import {
   Badge,
@@ -168,124 +166,88 @@ export const CoordinatorCalendarPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<Calendar className="h-4 w-4" />}>
-            Agenda Comunitária Sincronizada (UC16)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Calendário Institucional de Eventos
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Cadastre e edite Simulados ENEM, Reuniões Pedagógicas, Reuniões de Pais/Responsáveis,
-            Visitas Pedagógicas e Feriados. Tudo o que é publicado aqui aparece imediatamente para
-            os Alunos e Responsáveis.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto + Filtro inline alinhado pela base do input (Regra 2 e 5) */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1>Calendário</h1>
 
-        <Button
-          variant="primary"
-          size="lg"
-          leftIcon={<Plus className="h-5 w-5" />}
-          onClick={handleOpenCreateModal}
-        >
-          Cadastrar Novo Evento
-        </Button>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-60">
+            <Select
+              label="Categoria"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              options={[
+                { value: 'all', label: 'Todos os Eventos' },
+                { value: 'simulado', label: 'Simulados ENEM' },
+                { value: 'reuniao_pedagogica', label: 'Reuniões Pedagógicas' },
+                { value: 'reuniao_responsaveis', label: 'Reuniões de Responsáveis' },
+                { value: 'visita_pedagogica', label: 'Visitas Pedagógicas' },
+                { value: 'aula_especial', label: 'Aulões Especiais' },
+                { value: 'feriado', label: 'Feriados' },
+              ]}
+            />
+          </div>
+
+          <Button
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={handleOpenCreateModal}
+          >
+            Novo Evento
+          </Button>
+        </div>
       </div>
 
-      <CalloutAlert
-        variant="info"
-        title="Sincronização Instantânea com o Portal do Aluno e do Responsável"
-      >
-        Quando você cadastra um evento como <strong>Simulado ENEM</strong>,{' '}
-        <strong>Reunião de Responsáveis</strong> ou <strong>Visita Pedagógica</strong>, ele passa a
-        ser exibido automaticamente na tela <em>"Eventos e Avisos"</em> do perfil Aluno e na tela{' '}
-        <em>"Avisos e Reuniões"</em> do perfil Responsável.
-      </CalloutAlert>
-
-      {/* Filtro por Tipo de Evento */}
-      <Card
-        as="section"
-        title="Filtrar Calendário por Tipo de Evento"
-        subtitle="Selecione uma categoria para visualizar os compromissos agendados."
-      >
-        <div className="max-w-md">
-          <Select
-            label="Tipo de Evento Institucional"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            options={[
-              { value: 'all', label: 'Todos os Eventos do Semestre' },
-              { value: 'simulado', label: 'Simulados ENEM' },
-              { value: 'reuniao_pedagogica', label: 'Reuniões Pedagógicas (Docentes)' },
-              { value: 'reuniao_responsaveis', label: 'Reuniões de Pais e Responsáveis' },
-              { value: 'visita_pedagogica', label: 'Visitas Pedagógicas / Universidades' },
-              { value: 'aula_especial', label: 'Aulões Especiais' },
-              { value: 'feriado', label: 'Feriados e Rodas Culturais' },
-            ]}
-          />
-        </div>
-      </Card>
-
-      {/* Lista de Eventos ou EmptyState */}
+      {/* Lista de Eventos em Linhas Horizontais Limpas (Regra 5) */}
       {filteredEvents.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4">
-          {filteredEvents.map((evt) => {
-            const meta =
-              EVENT_CATEGORY_META[evt.category] ?? EVENT_CATEGORY_META.comunidade;
+        <Card noPadding>
+          <ul className="divide-y divide-line">
+            {filteredEvents.map((evt) => {
+              const meta =
+                EVENT_CATEGORY_META[evt.category] ?? EVENT_CATEGORY_META.comunidade;
 
-            return (
-              <article
-                key={evt.id}
-                className="rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900 space-y-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={meta.badgeVariant}>{meta.label}</Badge>
-                    <Badge variant="neutral" icon={<Users className="h-3.5 w-3.5" />}>
-                      Público: {evt.targetAudience.toUpperCase()}
-                    </Badge>
-                  </div>
+              return (
+                <li
+                  key={evt.id}
+                  className="flex flex-col gap-3 p-5 transition-colors hover:bg-subtle sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-semibold text-ink tabular-nums">
+                        {formatDateBR(evt.date)}
+                      </span>
+                      <Badge variant={meta.badgeVariant}>{meta.label}</Badge>
+                      <Badge variant="neutral">{evt.targetAudience}</Badge>
+                    </div>
 
-                  <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-primary-900 dark:text-primary-300">
-                    <Calendar className="h-4 w-4" aria-hidden="true" />
-                    <span>Data: {formatDateBR(evt.date)}</span>
-                  </span>
-                </div>
+                    <h2 className="text-base font-semibold text-ink">{evt.title}</h2>
+                    <p className="text-xs text-ink-muted">{evt.description}</p>
 
-                <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                  {evt.title}
-                </h2>
-
-                <p className="text-base text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {evt.description}
-                </p>
-
-                <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                      <span>Horário: {evt.timeRange}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                      <span>Local: {evt.location}</span>
-                    </span>
+                    <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-ink-muted">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="font-mono tabular-nums">{evt.timeRange}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>{evt.location}</span>
+                      </span>
+                    </div>
                   </div>
 
                   <Button
-                    variant="ghost"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleOpenEditModal(evt)}
                     leftIcon={<FilePenLine className="h-4 w-4" />}
                   >
-                    Editar Evento
+                    Editar
                   </Button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
       ) : (
         <EmptyState
           title="Nenhum evento encontrado nesta categoria"
@@ -309,8 +271,8 @@ export const CoordinatorCalendarPage: React.FC = () => {
         size="lg"
         title={
           editingEventId
-            ? 'Editar Evento do Calendário Institucional'
-            : 'Cadastrar Novo Evento Institucional (UC16)'
+            ? 'Editar Evento'
+            : 'Novo Evento'
         }
         description="Preencha os detalhes do evento. Ele ficará visível automaticamente para os estudantes e responsáveis."
         footer={
@@ -421,7 +383,7 @@ export const CoordinatorCalendarPage: React.FC = () => {
             placeholder="Ex: Traga documento com foto e caneta preta de tubo transparente. Lanche comunitário servido na copa."
           />
 
-          <div className="flex items-center gap-2 text-xs text-primary-800 dark:text-primary-300 pt-1">
+          <div className="flex items-center gap-2 text-xs text-primary-800 pt-1">
             <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
               Dica de teste: Após publicar, troque para o perfil <strong>Aluno</strong> ou{' '}

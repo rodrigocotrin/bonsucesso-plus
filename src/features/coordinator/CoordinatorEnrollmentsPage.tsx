@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   CheckCircle2,
-  FileCheck,
   FilePenLine,
   History,
   Plus,
@@ -12,7 +12,6 @@ import {
   BadgeVariant,
   Button,
   CalloutAlert,
-  Card,
   Input,
   Modal,
   Select,
@@ -45,6 +44,7 @@ export const CoordinatorEnrollmentsPage: React.FC = () => {
   const { currentPerson } = useSession();
   const { db, addEnrollment, updateEnrollment } = useMockDatabase();
   const { showToast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Enriquecimento das matrículas
   const enrollmentRows = useMemo<EnrichedEnrollmentRow[]>(() => {
@@ -83,6 +83,14 @@ export const CoordinatorEnrollmentsPage: React.FC = () => {
     setNewError('');
     setIsNewModalOpen(true);
   };
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      handleOpenNewEnrollment();
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleCreateEnrollment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,7 +216,7 @@ export const CoordinatorEnrollmentsPage: React.FC = () => {
         sortAccessor: (r) => r.enrollment.enrollmentCode,
         renderCell: (row) => (
           <div>
-            <span className="font-mono text-sm font-extrabold text-primary-900 dark:text-primary-300">
+            <span className="font-mono text-sm font-extrabold text-primary-900">
               {row.enrollment.enrollmentCode}
             </span>
             <span className="block text-xs text-slate-500">
@@ -223,7 +231,7 @@ export const CoordinatorEnrollmentsPage: React.FC = () => {
         sortAccessor: (r) => getDisplayName(r.student),
         renderCell: (row) => (
           <div>
-            <p className="text-base font-extrabold text-slate-900 dark:text-white">
+            <p className="text-base font-extrabold text-slate-900">
               {getDisplayName(row.student)}
             </p>
             <span className="text-xs text-slate-500">
@@ -238,7 +246,7 @@ export const CoordinatorEnrollmentsPage: React.FC = () => {
         sortAccessor: (r) => r.classRoomName,
         renderCell: (row) => (
           <div>
-            <p className="font-bold text-slate-800 dark:text-slate-200">
+            <p className="font-bold text-slate-800">
               {row.classRoomName}
             </p>
             <span className="text-xs text-slate-500">{row.periodName}</span>
@@ -283,78 +291,60 @@ export const CoordinatorEnrollmentsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<FileCheck className="h-4 w-4" />}>
-            Controle de Matrículas & Histórico Auditável (UC13, UC14)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Gestão de Matrículas
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Realize novas matrículas com prevenção de duplicidade e registre alterações de situação
-            (Ativa, Trancada, Cancelada, Concluída) com linha do tempo auditável.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Matrículas</h1>
 
         <Button
           variant="primary"
-          size="lg"
-          leftIcon={<Plus className="h-5 w-5" />}
+          leftIcon={<Plus className="h-4 w-4" />}
           onClick={handleOpenNewEnrollment}
         >
           Nova Matrícula
         </Button>
       </div>
 
-      {/* DataTable de Matrículas */}
-      <Card
-        title="Relação de Matrículas do Cursinho"
-        subtitle="Filtre por turma ou situação e clique em 'Histórico' para inspecionar a linha do tempo de auditoria."
-      >
-        <DataTable
-          data={enrollmentRows}
-          columns={columns}
-          getRowKey={(r) => r.enrollment.id}
-          searchLabel="Buscar por Código de Matrícula, Nome do Aluno ou CPF"
-          searchPlaceholder="Ex: BS-2026-001, Mariana, Bruno..."
-          searchPredicate={(row, q) =>
-            row.enrollment.enrollmentCode.toLowerCase().includes(q) ||
-            getDisplayName(row.student).toLowerCase().includes(q) ||
-            (row.student?.cpf.toLowerCase().includes(q) ?? false)
-          }
-          filters={[
-            {
-              id: 'classRoom',
-              label: 'Filtrar por Turma',
-              options: [
-                { value: 'all', label: 'Todas as Turmas' },
-                ...db.classRooms.map((c) => ({ value: c.id, label: c.name })),
-              ],
-              predicate: (row, val) => row.enrollment.classRoomId === val,
-            },
-            {
-              id: 'status',
-              label: 'Situação da Matrícula',
-              options: [
-                { value: 'all', label: 'Todas as Situações' },
-                { value: 'ativa', label: 'Ativa' },
-                { value: 'trancada', label: 'Trancada' },
-                { value: 'cancelada', label: 'Cancelada' },
-                { value: 'concluída', label: 'Concluída' },
-              ],
-              predicate: (row, val) => row.enrollment.status === val,
-            },
-          ]}
-        />
-      </Card>
+      <DataTable
+        data={enrollmentRows}
+        columns={columns}
+        getRowKey={(r) => r.enrollment.id}
+        searchLabel="Pesquisar"
+        searchPlaceholder="Código de matrícula, nome ou CPF..."
+        searchPredicate={(row, q) =>
+          row.enrollment.enrollmentCode.toLowerCase().includes(q) ||
+          getDisplayName(row.student).toLowerCase().includes(q) ||
+          (row.student?.cpf.toLowerCase().includes(q) ?? false)
+        }
+        filters={[
+          {
+            id: 'classRoom',
+            label: 'Turma',
+            options: [
+              { value: 'all', label: 'Todas as Turmas' },
+              ...db.classRooms.map((c) => ({ value: c.id, label: c.name })),
+            ],
+            predicate: (row, val) => row.enrollment.classRoomId === val,
+          },
+          {
+            id: 'status',
+            label: 'Situação',
+            options: [
+              { value: 'all', label: 'Todas' },
+              { value: 'ativa', label: 'Ativa' },
+              { value: 'trancada', label: 'Trancada' },
+              { value: 'cancelada', label: 'Cancelada' },
+              { value: 'concluída', label: 'Concluída' },
+            ],
+            predicate: (row, val) => row.enrollment.status === val,
+          },
+        ]}
+      />
 
       {/* MODAL 1: FLUXO GUIADO "NOVA MATRÍCULA" (Impede duplicidade ativa na mesma turma) */}
       <Modal
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
-        title="Fluxo Guiado — Nova Matrícula (UC13)"
+        title="Nova Matrícula"
         description="Selecione um estudante já cadastrado e a turma desejada. O sistema impede matrícula duplicada ativa na mesma turma."
         footer={
           <>
@@ -451,7 +441,7 @@ export const CoordinatorEnrollmentsPage: React.FC = () => {
       >
         {statusModalTarget && (
           <form onSubmit={handleConfirmStatusChange} className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm dark:border-slate-800 dark:bg-slate-950">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm">
               <p>
                 <strong>Matrícula:</strong>{' '}
                 {statusModalTarget.enrollment.enrollmentCode} •{' '}
@@ -512,21 +502,21 @@ export const CoordinatorEnrollmentsPage: React.FC = () => {
         }
       >
         {historyModalTarget && (
-          <ol className="relative border-l-4 border-primary-300 dark:border-primary-700 ml-3 space-y-4">
+          <ol className="relative border-l-4 border-primary-300 ml-3 space-y-4">
             {historyModalTarget.enrollment.statusHistory.map((entry, idx) => {
               const cfg = STATUS_BADGE_MAP[entry.status];
               const author = db.persons.find(
                 (p) => p.id === entry.changedByPersonId
               );
               return (
-                <li key={idx} className="ml-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+                <li key={idx} className="ml-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                    <span className="text-xs font-extrabold text-slate-600 dark:text-slate-400">
+                    <span className="text-xs font-extrabold text-slate-600">
                       Data: {formatDateBR(entry.changedAt)}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">
+                  <p className="mt-2 text-sm font-medium text-slate-900">
                     {entry.reason}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">

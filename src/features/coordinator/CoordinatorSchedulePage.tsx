@@ -1,18 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  Calendar,
-  CalendarCheck,
-  CheckCircle2,
-  ClipboardCheck,
   Plus,
   Save,
 } from 'lucide-react';
 import {
-  Badge,
   Button,
   CalloutAlert,
-  Card,
   Input,
   MetricCard,
   Modal,
@@ -409,34 +403,22 @@ export const CoordinatorSchedulePage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<CalendarCheck className="h-4 w-4" />}>
-            Matriz de Horários & Detecção de Conflitos (UC15)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Grade Horária e Aulas
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Visualize a matriz semanal (Segunda a Sábado x Manhã, Tarde e Noite). O sistema detecta
-            automaticamente caso o mesmo professor ou a mesma turma tenham aulas sobrepostas.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Grade Horária</h1>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
-            variant="ghost"
+            variant="secondary"
             onClick={handleSimulateConflictDemo}
             leftIcon={<AlertTriangle className="h-4 w-4" />}
           >
-            Simular Conflito de Horário
+            Simular Conflito
           </Button>
 
           <Button
             variant="primary"
-            size="lg"
-            leftIcon={<Plus className="h-5 w-5" />}
+            leftIcon={<Plus className="h-4 w-4" />}
             onClick={() => setIsModalOpen(true)}
           >
             Agendar Aula
@@ -444,92 +426,77 @@ export const CoordinatorSchedulePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Resumo Mensal (Aulas Agendadas, Realizadas e Chamadas Pendentes) */}
-      <section aria-label="Resumo mensal de aulas do cursinho">
+      {/* Resumo Mensal Ultra-Limpo */}
+      <section aria-label="Resumo mensal de aulas">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <MetricCard
-            title="Aulas Agendadas no Mês"
+            title="Aulas Agendadas"
             value={`${monthlySummary.scheduledCount} aulas`}
-            scale="raw"
-            accentColor="primary"
-            icon={<Calendar className="h-6 w-6" />}
-            statusBadge={{ label: 'Cronograma ativo', variant: 'primary' }}
-            subtitle="Encontros previstos na grade das 3 turmas."
+            accentColor="academic"
+            subtitle="3 turmas ativas"
           />
 
           <MetricCard
-            title="Aulas Realizadas / Ministradas"
+            title="Aulas Ministradas"
             value={`${monthlySummary.completedCount} aulas`}
-            scale="raw"
-            accentColor="success"
-            icon={<CheckCircle2 className="h-6 w-6" />}
-            statusBadge={{ label: 'Conteúdo registrado', variant: 'success' }}
-            subtitle="Aulas concluídas com plano de ensino no diário."
+            accentColor="progress"
+            subtitle="Conteúdo registrado"
           />
 
           <MetricCard
             title="Chamadas Pendentes"
             value={`${monthlySummary.pendingAttendanceCount} chamadas`}
-            scale="raw"
             accentColor={
-              monthlySummary.pendingAttendanceCount > 0 ? 'warning' : 'success'
+              monthlySummary.pendingAttendanceCount > 0 ? 'assess' : 'progress'
             }
-            icon={<ClipboardCheck className="h-6 w-6" />}
             statusBadge={{
               label:
                 monthlySummary.pendingAttendanceCount > 0
-                  ? 'Aguardando docente'
-                  : '100% em dia',
+                  ? 'Aguardando lançamento'
+                  : 'Em dia',
               variant:
                 monthlySummary.pendingAttendanceCount > 0 ? 'warning' : 'success',
             }}
-            subtitle="Aulas aguardando fechamento da lista de presença."
           />
         </div>
       </section>
 
-      {/* Filtros por Turma e por Professor + Componente Reutilizável ScheduleMatrix */}
-      <Card
-        as="section"
-        title="Matriz Semanal de Horários (Seg a Sáb x Manhã, Tarde, Noite)"
-        subtitle="Filtre por turma ou professor voluntário para inspecionar a alocação semanal."
-      >
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Select
-              label="Filtrar por Turma"
-              value={filterClassRoomId}
-              onChange={(e) => setFilterClassRoomId(e.target.value)}
-              options={[
-                { value: 'all', label: 'Todas as Turmas (Visão Completa de Conflitos)' },
-                ...db.classRooms.map((c) => ({ value: c.id, label: c.name })),
-              ]}
-            />
+      {/* Filtros + ScheduleMatrix */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Select
+            label="Turma"
+            value={filterClassRoomId}
+            onChange={(e) => setFilterClassRoomId(e.target.value)}
+            options={[
+              { value: 'all', label: 'Todas as Turmas' },
+              ...db.classRooms.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
 
-            <Select
-              label="Filtrar por Professor(a) Voluntário(a)"
-              value={filterTeacherId}
-              onChange={(e) => setFilterTeacherId(e.target.value)}
-              options={[
-                { value: 'all', label: 'Todos os Professores Voluntários' },
-                ...activeTeachers.map((t) => ({
-                  value: t.id,
-                  label: getDisplayName(t),
-                })),
-              ]}
-            />
-          </div>
-
-          <ScheduleMatrix entries={filteredEntries} />
+          <Select
+            label="Professor(a)"
+            value={filterTeacherId}
+            onChange={(e) => setFilterTeacherId(e.target.value)}
+            options={[
+              { value: 'all', label: 'Todos os Professores' },
+              ...activeTeachers.map((t) => ({
+                value: t.id,
+                label: getDisplayName(t),
+              })),
+            ]}
+          />
         </div>
-      </Card>
+
+        <ScheduleMatrix entries={filteredEntries} />
+      </div>
 
       {/* MODAL PARA AGENDAR AULA COM DETECÇÃO DE CONFLITO EM TEMPO REAL */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         size="lg"
-        title="Agendar Aula na Grade Horária (UC15)"
+        title="Agendar Aula"
         description="Escolha o dia da semana, horário, turma, disciplina e professor voluntário."
         footer={
           <>

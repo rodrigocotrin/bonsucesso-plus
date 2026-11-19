@@ -97,17 +97,17 @@ export const RoleRoutePlaceholder: React.FC<RoleRoutePlaceholderProps> = ({
             </Badge>
             <Badge variant="neutral">{getRoleDisplayLabel(role)}</Badge>
           </div>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
             {title}
           </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
+          <p className="mt-1 max-w-3xl text-base text-slate-600">
             {description}
           </p>
         </div>
 
         <Link
           to="/design-system"
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100"
         >
           <span>Ver Catálogo do Design System</span>
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
@@ -269,26 +269,26 @@ export const RoleRoutePlaceholder: React.FC<RoleRoutePlaceholderProps> = ({
             <Link
               key={item.id}
               to={item.path}
-              className="group flex flex-col justify-between rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 transition-all hover:border-primary-600 hover:bg-white dark:border-slate-800 dark:bg-slate-950/50 dark:hover:border-primary-500 dark:hover:bg-slate-900"
+              className="group flex flex-col justify-between rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 transition-all hover:border-primary-600 hover:bg-white"
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-800 dark:bg-primary-950 dark:text-primary-300">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-800">
                     {item.icon}
                   </div>
-                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                  <span className="text-xs font-mono text-slate-500">
                     {item.path}
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-primary-800 dark:text-white dark:group-hover:text-primary-300">
+                <h3 className="text-base font-bold text-slate-900 group-hover:text-primary-800">
                   {item.label}
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                <p className="text-sm text-slate-600 leading-relaxed">
                   {item.description}
                 </p>
               </div>
 
-              <div className="mt-4 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-primary-800 dark:text-primary-300">
+              <div className="mt-4 pt-2 border-t border-slate-200/70 flex items-center justify-between text-xs font-bold text-primary-800">
                 <span>Abrir seção</span>
                 <span aria-hidden="true">→</span>
               </div>
@@ -303,55 +303,55 @@ export const RoleRoutePlaceholder: React.FC<RoleRoutePlaceholderProps> = ({
         subtitle="Dados persistidos em localStorage e prontos para consumo pelas features de Aluno, Responsável, Professor e Coordenação."
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 text-sm">
-          <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="rounded-xl border border-slate-200 p-3">
+            <span className="text-xs font-semibold text-slate-500">
               Pessoas (Entidade Central)
             </span>
-            <p className="text-lg font-extrabold text-slate-900 dark:text-white mt-0.5">
+            <p className="text-lg font-extrabold text-slate-900 mt-0.5">
               {db.persons.length} registros
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="rounded-xl border border-slate-200 p-3">
+            <span className="text-xs font-semibold text-slate-500">
               Turmas Ativas ({db.academicPeriods.find((p) => p.isCurrent)?.name})
             </span>
-            <p className="text-lg font-extrabold text-slate-900 dark:text-white mt-0.5">
+            <p className="text-lg font-extrabold text-slate-900 mt-0.5">
               {db.classRooms.length} turmas
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="rounded-xl border border-slate-200 p-3">
+            <span className="text-xs font-semibold text-slate-500">
               Disciplinas ENEM
             </span>
-            <p className="text-lg font-extrabold text-slate-900 dark:text-white mt-0.5">
+            <p className="text-lg font-extrabold text-slate-900 mt-0.5">
               {db.subjects.length} matérias
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="rounded-xl border border-slate-200 p-3">
+            <span className="text-xs font-semibold text-slate-500">
               Simulados Históricos
             </span>
-            <p className="text-lg font-extrabold text-slate-900 dark:text-white mt-0.5">
+            <p className="text-lg font-extrabold text-slate-900 mt-0.5">
               {db.assessments.length} simulados
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="rounded-xl border border-slate-200 p-3">
+            <span className="text-xs font-semibold text-slate-500">
               Próximos Eventos
             </span>
-            <p className="text-lg font-extrabold text-slate-900 dark:text-white mt-0.5">
+            <p className="text-lg font-extrabold text-slate-900 mt-0.5">
               {db.calendarEvents.length} agendados
             </p>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
           <span className="inline-flex items-center gap-1.5">
-            <Calendar className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+            <Calendar className="h-4 w-4 text-primary-700" aria-hidden="true" />
             <span>
               Rota inicial do perfil atual: <strong>{getDefaultRouteForRole(role)}</strong>
             </span>

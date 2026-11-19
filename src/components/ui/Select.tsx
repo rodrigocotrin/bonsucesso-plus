@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { AlertCircle, ChevronDown, HelpCircle } from 'lucide-react';
+import { AlertCircle, ChevronDown } from 'lucide-react';
 import { cn } from '../../utils/formatters';
 
 export interface SelectOption {
@@ -18,7 +18,7 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
 }
 
 /**
- * Campo de seleção com rótulo sempre visível acima, ícone claro e suporte a mensagens de ajuda e erro.
+ * Select padronizado (h-11 mobile / h-10 desktop), borda 1px #E4E4E7 e validação inline em Vermelho (#DC2626).
  */
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   (
@@ -43,22 +43,16 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const errorId = `${selectId}-error`;
     const hasError = Boolean(errorText);
 
-    const describedBy = [
-      helperText ? helperId : null,
-      hasError ? errorId : null,
-    ]
-      .filter(Boolean)
-      .join(' ') || undefined;
+    const describedBy =
+      [helperText ? helperId : null, hasError ? errorId : null].filter(Boolean).join(' ') ||
+      undefined;
 
     return (
-      <div className="w-full flex flex-col gap-1.5">
-        <label
-          htmlFor={selectId}
-          className="text-base font-semibold text-slate-900 dark:text-slate-100"
-        >
+      <div className="flex w-full flex-col gap-1">
+        <label htmlFor={selectId} className="text-xs font-semibold uppercase tracking-wider text-ink">
           {label}
           {required && (
-            <span className="ml-1 text-danger-700 dark:text-danger-400 font-bold" aria-hidden="true">
+            <span className="ml-1 font-bold text-critical" aria-hidden="true">
               *
             </span>
           )}
@@ -67,7 +61,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <div className="relative flex items-center">
           {leftIcon && (
             <span
-              className="absolute left-3.5 text-slate-500 dark:text-slate-400 pointer-events-none flex items-center"
+              className="pointer-events-none absolute left-3 flex items-center text-ink-muted [&>svg]:h-4 [&>svg]:w-4"
               aria-hidden="true"
             >
               {leftIcon}
@@ -82,13 +76,12 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             aria-invalid={hasError}
             aria-describedby={describedBy}
             className={cn(
-              'w-full min-h-[44px] appearance-none rounded-xl border-2 px-3.5 py-2.5 pr-10 text-base transition-colors',
-              'bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100',
-              'disabled:bg-slate-100 disabled:text-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-400 disabled:cursor-not-allowed',
-              leftIcon ? 'pl-11' : '',
+              'h-11 sm:h-10 w-full appearance-none rounded border bg-surface px-3 pr-9 text-sm text-ink transition-colors duration-150',
+              'disabled:cursor-not-allowed disabled:bg-subtle disabled:text-ink-muted',
+              Boolean(leftIcon) && 'pl-9',
               hasError
-                ? 'border-danger-700 dark:border-danger-500 focus-visible:ring-danger-700'
-                : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 focus-visible:border-primary-700 dark:focus-visible:border-primary-400',
+                ? 'border-critical bg-critical-bg/30 focus-visible:border-critical focus-visible:ring-critical'
+                : 'border-line hover:border-ink/60 focus-visible:border-ink',
               className
             )}
             {...props}
@@ -106,7 +99,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           </select>
 
           <ChevronDown
-            className="absolute right-3.5 h-5 w-5 text-slate-600 dark:text-slate-400 pointer-events-none"
+            className="pointer-events-none absolute right-3 h-4 w-4 text-ink-muted"
             aria-hidden="true"
           />
         </div>
@@ -115,20 +108,16 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           <p
             id={errorId}
             role="alert"
-            className="flex items-start gap-1.5 text-sm font-medium text-danger-700 dark:text-danger-400 mt-0.5"
+            className="flex items-start gap-1 text-xs font-medium text-critical"
           >
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>{errorText}</span>
           </p>
         )}
 
-        {helperText && (
-          <p
-            id={helperId}
-            className="flex items-start gap-1.5 text-sm text-slate-600 dark:text-slate-300 mt-0.5"
-          >
-            <HelpCircle className="h-4 w-4 shrink-0 mt-0.5 text-slate-500 dark:text-slate-400" aria-hidden="true" />
-            <span>{helperText}</span>
+        {helperText && !hasError && (
+          <p id={helperId} className="text-xs text-ink-muted">
+            {helperText}
           </p>
         )}
       </div>

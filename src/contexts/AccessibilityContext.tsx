@@ -1,8 +1,18 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { FontScale, ThemeMode } from '../types';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { FontScale, ResolvedTheme, ThemeMode } from '../types';
 
-interface AccessibilityContextValue {
+export interface AccessibilityContextValue {
+  /** Preferência selecionada pelo usuário ('light' | 'dark' | 'system') */
   theme: ThemeMode;
+  /** Tema efetivamente aplicado ao DOM ('light' | 'dark') */
+  resolvedTheme: ResolvedTheme;
   fontScale: FontScale;
   toggleTheme: () => void;
   setTheme: (theme: ThemeMode) => void;
@@ -12,71 +22,136 @@ interface AccessibilityContextValue {
 
 const AccessibilityContext = createContext<AccessibilityContextValue | undefined>(undefined);
 
-const THEME_STORAGE_KEY = 'integracurso_theme';
+export const THEME_STORAGE_KEY = 'bonsucesso-theme';
 const FONT_SCALE_STORAGE_KEY = 'integracurso_font_scale';
+
+function getSystemPrefersDark(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function resolveThemeMode(mode: ThemeMode, systemDark: boolean): ResolvedTheme {
+  if (mode === 'system') {
+    return systemDark ? 'dark' : 'light';
+  }
+  return mode;
+}
 
 export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    return saved === 'dark' || saved === 'light' ? saved : 'light'; // Modo Claro acolhedor como padrão
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'light' || saved === 'dark' || saved === 'system') {
+        return saved;
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return 'system';
   });
 
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() =>
+    getSystemPrefersDark()
+  );
+
   const [fontScale, setFontScaleState] = useState<FontScale>(() => {
-    const saved = localStorage.getItem(FONT_SCALE_STORAGE_KEY);
-    return saved === 'normal' || saved === 'large' || saved === 'xlarge' ? saved : 'normal';
+    try {
+      const saved = localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+      return saved === 'normal' || saved === 'large' || saved === 'xlarge' ? saved : 'normal';
+    } catch {
+      return 'normal';
+    }
   });
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemPrefersDark(event.matches);
+    };
+
+    setSystemPrefersDark(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  const resolvedTheme = resolveThemeMode(theme, systemPrefersDark);
+
+  useEffect(() => {
     const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
+    const isDark = resolvedTheme === 'dark';
+
+    root.classList.toggle('dark', isDark);
+    root.style.colorScheme = isDark ? 'dark' : 'light';
+
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', isDark ? '#0C0D10' : '#FAF9F6');
     }
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme]);
+
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // ignore storage errors
+    }
+  }, [theme, resolvedTheme]);
 
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute('data-font-scale', fontScale);
-    localStorage.setItem(FONT_SCALE_STORAGE_KEY, fontScale);
+    try {
+      localStorage.setItem(FONT_SCALE_STORAGE_KEY, fontScale);
+    } catch {
+      // ignore storage errors
+    }
   }, [fontScale]);
 
-  const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
+  const toggleTheme = useCallback(() => {
+    setThemeState((prev) => {
+      const currentResolved = resolveThemeMode(prev, systemPrefersDark);
+      return currentResolved === 'dark' ? 'light' : 'dark';
+    });
+  }, [systemPrefersDark]);
 
-  const setTheme = (newTheme: ThemeMode) => {
+  const setTheme = useCallback((newTheme: ThemeMode) => {
     setThemeState(newTheme);
-  };
+  }, []);
 
-  const setFontScale = (scale: FontScale) => {
+  const setFontScale = useCallback((scale: FontScale) => {
     setFontScaleState(scale);
-  };
+  }, []);
 
-  const cycleFontScale = () => {
+  const cycleFontScale = useCallback(() => {
     setFontScaleState((prev) => {
       if (prev === 'normal') return 'large';
       if (prev === 'large') return 'xlarge';
       return 'normal';
     });
-  };
+  }, []);
+
+  const contextValue = useMemo<AccessibilityContextValue>(
+    () => ({
+      theme,
+      resolvedTheme,
+      fontScale,
+      toggleTheme,
+      setTheme,
+      setFontScale,
+      cycleFontScale,
+    }),
+    [theme, resolvedTheme, fontScale, toggleTheme, setTheme, setFontScale, cycleFontScale]
+  );
 
   return (
-    <AccessibilityContext.Provider
-      value={{
-        theme,
-        fontScale,
-        toggleTheme,
-        setTheme,
-        setFontScale,
-        cycleFontScale,
-      }}
-    >
+    <AccessibilityContext.Provider value={contextValue}>
       {children}
     </AccessibilityContext.Provider>
   );
 };
+
+/** Alias semântico de ThemeProvider conforme contrato de Dark Mode */
+export const ThemeProvider = AccessibilityProvider;
 
 export function useAccessibility(): AccessibilityContextValue {
   const context = useContext(AccessibilityContext);
@@ -84,4 +159,10 @@ export function useAccessibility(): AccessibilityContextValue {
     throw new Error('useAccessibility deve ser utilizado dentro de um AccessibilityProvider');
   }
   return context;
+}
+
+/** Hook semântico useTheme() para controle de aparência (Claro | Escuro | Sistema) */
+export function useTheme() {
+  const { theme, resolvedTheme, setTheme, toggleTheme } = useAccessibility();
+  return { theme, resolvedTheme, setTheme, toggleTheme };
 }

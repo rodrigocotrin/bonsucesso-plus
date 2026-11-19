@@ -5,7 +5,7 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
+  RotateCcw,
 } from 'lucide-react';
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   SearchBar,
   Select,
   SelectOption,
+  SkeletonTable,
 } from '../ui';
 import { cn } from '../../utils/formatters';
 
@@ -41,32 +42,43 @@ export interface DataTableProps<T> {
   searchPredicate?: (row: T, query: string) => boolean;
   filters?: Array<DataTableFilterConfig<T>>;
   renderMobileCard?: (row: T) => React.ReactNode;
+  onRowClick?: (row: T) => void;
+  isLoading?: boolean;
   pageSize?: number;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyAction?: React.ReactNode;
   headerExtraAction?: React.ReactNode;
 }
 
 /**
- * Componente Reutilizável DataTable (src/components/shared/DataTable.tsx)
- * - Extensível via generics e props (OCP), sem regras de negócio acopladas.
- * - Suporta busca textual, múltiplos filtros suspensos, ordenação por coluna (asc/desc),
- *   paginação acessível, zebra-striping inspirado no SUAP e cards empilhados no Mobile.
+ * Lei de Hick: Tabelas exibem no máximo 6 colunas visíveis.
+ * Informações secundárias e fichas completas devem abrir em um SlideOverDrawer lateral.
  */
+const MAX_VISIBLE_COLUMNS = 6;
+
 export function DataTable<T>({
   data,
   columns,
   getRowKey,
-  searchLabel = 'Buscar na lista',
-  searchPlaceholder = 'Digite para filtrar...',
+  searchLabel = 'Pesquisar',
+  searchPlaceholder = 'Filtrar por nome, matrícula ou CPF...',
   searchPredicate,
   filters = [],
   renderMobileCard,
-  pageSize = 8,
+  onRowClick,
+  isLoading = false,
+  pageSize = 10,
   emptyTitle = 'Nenhum registro encontrado',
-  emptyDescription = 'Não encontramos resultados para os filtros selecionados. Tente limpar a busca.',
+  emptyDescription = 'Não há itens correspondentes aos filtros aplicados.',
+  emptyAction,
   headerExtraAction,
 }: DataTableProps<T>) {
+  const visibleColumns = useMemo(
+    () => columns.slice(0, MAX_VISIBLE_COLUMNS),
+    [columns]
+  );
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
@@ -111,7 +123,6 @@ export function DataTable<T>({
     setCurrentPage(1);
   };
 
-  // 1. Filtra por busca textual e filtros suspensos
   const filteredData = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return data.filter((row) => {
@@ -128,27 +139,23 @@ export function DataTable<T>({
     });
   }, [data, searchQuery, searchPredicate, filters, filterValues]);
 
-  // 2. Ordena pela coluna ativa
   const sortedData = useMemo(() => {
     if (!sortColumnId) return filteredData;
-    const activeCol = columns.find((c) => c.id === sortColumnId);
+    const activeCol = visibleColumns.find((c) => c.id === sortColumnId);
     if (!activeCol || !activeCol.sortAccessor) return filteredData;
 
     const accessor = activeCol.sortAccessor;
     return [...filteredData].sort((a, b) => {
       const valA = accessor(a);
       const valB = accessor(b);
-      let cmp = 0;
-      if (typeof valA === 'number' && typeof valB === 'number') {
-        cmp = valA - valB;
-      } else {
-        cmp = String(valA).localeCompare(String(valB), 'pt-BR', { numeric: true });
-      }
+      const cmp =
+        typeof valA === 'number' && typeof valB === 'number'
+          ? valA - valB
+          : String(valA).localeCompare(String(valB), 'pt-BR', { numeric: true });
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [filteredData, sortColumnId, sortDirection, columns]);
+  }, [filteredData, sortColumnId, sortDirection, visibleColumns]);
 
-  // 3. Paginação
   const totalItems = sortedData.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(currentPage, totalPages);
@@ -159,12 +166,16 @@ export function DataTable<T>({
     searchQuery.trim().length > 0 ||
     Object.values(filterValues).some((v) => v !== 'all');
 
+  if (isLoading) {
+    return <SkeletonTable rows={6} columns={visibleColumns.length} />;
+  }
+
   return (
-    <div className="space-y-5">
-      {/* Barra de Busca e Filtros Suspensos */}
+    <div className="space-y-4">
+      {/* Barra Horizontal de Pesquisa e Filtros Combináveis (oculta na impressão) */}
       {(searchPredicate || filters.length > 0 || headerExtraAction) && (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50 space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-12 items-end">
+        <div className="no-print rounded-lg border border-line bg-surface p-4">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-12">
             {searchPredicate && (
               <div
                 className={cn(
@@ -200,11 +211,11 @@ export function DataTable<T>({
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs text-ink-muted">
             <span>
-              Exibindo <strong>{paginatedData.length}</strong> de{' '}
-              <strong>{totalItems}</strong>{' '}
-              {totalItems === 1 ? 'registro encontrado' : 'registros encontrados'}
+              Exibindo <strong className="num text-ink">{paginatedData.length}</strong> de{' '}
+              <strong className="num text-ink">{totalItems}</strong>{' '}
+              {totalItems === 1 ? 'registro' : 'registros'}
             </span>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -212,10 +223,10 @@ export function DataTable<T>({
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  className="inline-flex h-8 items-center gap-1.5 rounded border border-line bg-paper px-2.5 text-xs font-medium text-ink hover:bg-subtle"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Limpar busca e filtros</span>
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Limpar filtros</span>
                 </button>
               )}
               {headerExtraAction}
@@ -224,45 +235,75 @@ export function DataTable<T>({
         </div>
       )}
 
-      {/* Conteúdo: Tabela Desktop + Cards Mobile ou EmptyState */}
+      {/* Tabela Densa (Desktop) + Cards Empilhados (Mobile) */}
       {paginatedData.length > 0 ? (
         <>
-          {/* Visão Mobile (Cards Empilhados) */}
-          <div className="md:hidden space-y-3">
-            {paginatedData.map((row) => (
-              <div
-                key={getRowKey(row)}
-                className="rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900"
-              >
-                {renderMobileCard ? (
-                  renderMobileCard(row)
-                ) : (
-                  <div className="space-y-2.5">
-                    {columns.map((col) => (
-                      <div
-                        key={col.id}
-                        className="flex flex-col gap-0.5 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0 dark:border-slate-800"
-                      >
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          {col.header}
-                        </span>
-                        <div className="text-sm text-slate-900 dark:text-slate-100">
-                          {col.renderCell(row)}
+          {/* Mobile (< 768px): Lista de Cards Empilhados Limpos (sem bordas aninhadas) */}
+          <div className="space-y-2.5 md:hidden print:hidden">
+            {paginatedData.map((row) => {
+              const primaryCol = visibleColumns[0];
+              const actionCol = visibleColumns.find((c) => c.id === 'actions');
+              const detailCols = visibleColumns
+                .slice(1)
+                .filter((c) => c.id !== 'actions');
+
+              return (
+                <div
+                  key={getRowKey(row)}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  className={cn(
+                    'rounded-lg border border-line bg-surface p-4 space-y-3',
+                    onRowClick && 'cursor-pointer hover:bg-subtle'
+                  )}
+                >
+                  {renderMobileCard ? (
+                    renderMobileCard(row)
+                  ) : (
+                    <>
+                      {primaryCol && (
+                        <div>
+                          <span className="text-[11px] font-medium text-ink-muted">
+                            {primaryCol.header}
+                          </span>
+                          <div className="mt-0.5 text-sm font-semibold text-ink">
+                            {primaryCol.renderCell(row)}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+                      )}
+
+                      {detailCols.length > 0 && (
+                        <div className="grid grid-cols-2 gap-3 rounded-md bg-subtle p-3">
+                          {detailCols.map((col) => (
+                            <div key={col.id} className="min-w-0">
+                              <span className="block text-[11px] font-medium text-ink-muted">
+                                {col.header}
+                              </span>
+                              <div className="mt-0.5 text-xs text-ink">
+                                {col.renderCell(row)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {actionCol && (
+                        <div className="flex items-center justify-end pt-1">
+                          {actionCol.renderCell(row)}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* Visão Desktop (Tabela inspirada no SUAP com zebra-striping e ordenação acessível) */}
-          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-100/90 text-slate-800 dark:border-slate-800 dark:bg-slate-800/90 dark:text-slate-100">
-                <tr>
-                  {columns.map((col) => {
+          {/* Desktop (>= 768px) & Print: Tabela Densa Operacional */}
+          <div className="hidden overflow-x-auto rounded-lg border border-line bg-surface md:block print:block">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="sticky top-0 z-10 border-b border-ink bg-paper">
+                <tr className="h-10">
+                  {visibleColumns.map((col) => {
                     const isSortable = Boolean(col.sortAccessor);
                     const isSorted = sortColumnId === col.id;
                     return (
@@ -278,23 +319,26 @@ export function DataTable<T>({
                             ? 'none'
                             : undefined
                         }
-                        className={cn('px-4 py-3.5 font-extrabold', col.headerClassName)}
+                        className={cn(
+                          'px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-muted',
+                          col.headerClassName
+                        )}
                       >
                         {isSortable ? (
                           <button
                             type="button"
                             onClick={() => handleSortClick(col)}
-                            className="inline-flex items-center gap-1.5 rounded-lg py-0.5 text-left font-extrabold hover:text-primary-800 dark:hover:text-primary-300"
+                            className="inline-flex items-center gap-1.5 text-left uppercase tracking-wider text-ink-muted hover:text-ink"
                           >
                             <span>{col.header}</span>
                             {isSorted ? (
                               sortDirection === 'asc' ? (
-                                <ArrowUp className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                                <ArrowUp className="h-3.5 w-3.5 text-ink" aria-hidden="true" />
                               ) : (
-                                <ArrowDown className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                                <ArrowDown className="h-3.5 w-3.5 text-ink" aria-hidden="true" />
                               )
                             ) : (
-                              <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                              <ArrowUpDown className="h-3.5 w-3.5 text-ink-muted/70" aria-hidden="true" />
                             )}
                           </button>
                         ) : (
@@ -305,21 +349,20 @@ export function DataTable<T>({
                   })}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {paginatedData.map((row, rowIdx) => (
+              <tbody className="divide-y divide-line">
+                {paginatedData.map((row) => (
                   <tr
                     key={getRowKey(row)}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
                     className={cn(
-                      'transition-colors hover:bg-primary-50/40 dark:hover:bg-primary-950/30',
-                      rowIdx % 2 === 1
-                        ? 'bg-slate-50/60 dark:bg-slate-900/50'
-                        : 'bg-white dark:bg-slate-900'
+                      'h-11 bg-surface transition-colors duration-100 hover:bg-subtle',
+                      onRowClick && 'cursor-pointer'
                     )}
                   >
-                    {columns.map((col) => (
+                    {visibleColumns.map((col) => (
                       <td
                         key={col.id}
-                        className={cn('px-4 py-3.5 align-middle', col.cellClassName)}
+                        className={cn('px-4 py-2 align-middle text-sm text-ink', col.cellClassName)}
                       >
                         {col.renderCell(row)}
                       </td>
@@ -330,17 +373,19 @@ export function DataTable<T>({
             </table>
           </div>
 
-          {/* Controles de Paginação */}
+          {/* Paginação Tabular */}
           {totalPages > 1 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Página <strong>{safePage}</strong> de <strong>{totalPages}</strong> (
-                {totalItems} registros)
+            <div className="no-print flex flex-wrap items-center justify-between gap-4 rounded-lg border border-line bg-surface px-4 py-2.5">
+              <span className="text-xs text-ink-muted">
+                Página <strong className="num text-ink">{safePage}</strong> de{' '}
+                <strong className="num text-ink">{totalPages}</strong> (
+                <span className="num">{totalItems}</span> registros)
               </span>
 
               <div className="flex items-center gap-2">
                 <Button
-                  variant="ghost"
+                  variant="secondary"
+                  size="sm"
                   disabled={safePage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   leftIcon={<ChevronLeft className="h-4 w-4" />}
@@ -348,7 +393,8 @@ export function DataTable<T>({
                   Anterior
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="secondary"
+                  size="sm"
                   disabled={safePage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   rightIcon={<ChevronRight className="h-4 w-4" />}
@@ -366,13 +412,15 @@ export function DataTable<T>({
           action={
             hasActiveFilters ? (
               <Button
-                variant="primary"
-                leftIcon={<RefreshCw className="h-4 w-4" />}
+                variant="secondary"
+                leftIcon={<RotateCcw className="h-4 w-4" />}
                 onClick={handleResetFilters}
               >
-                Limpar Filtros e Mostrar Todos
+                Limpar filtros
               </Button>
-            ) : undefined
+            ) : (
+              emptyAction
+            )
           }
         />
       )}

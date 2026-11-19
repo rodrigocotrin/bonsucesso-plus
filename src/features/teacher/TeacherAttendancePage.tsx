@@ -1,31 +1,45 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   CheckCheck,
-  ClipboardCheck,
+  Keyboard,
   RotateCcw,
   Save,
-  Users,
 } from 'lucide-react';
 import {
-  Badge,
   Button,
   CalloutAlert,
-  Card,
   Select,
 } from '../../components/ui';
 import { StudentCard } from '../../components/shared/StudentCard';
 import { useMockDatabase } from '../../contexts/MockDatabaseContext';
 import { useToast } from '../../contexts/ToastContext';
+import { getDisplayName } from '../../lib/person';
 import { Attendance, AttendancePresence } from '../../types';
-import { formatDateBR, getDisplayName } from '../../utils/formatters';
+import { formatDateBR } from '../../utils/formatters';
+
+interface AttendanceDraftPayload {
+  savedAt: string; // HH:mm
+  presenceMap: Record<string, { presence?: AttendancePresence; justification?: string }>;
+}
+
+function getAttendanceDraftStorageKey(lessonId: string): string {
+  return `bonsucesso_draft_attendance_${lessonId}`;
+}
+
+function formatNowTimeHHMM(): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+}
 
 export const TeacherAttendancePage: React.FC = () => {
   const { db, getStudentAttendancePercentage, recordAttendanceBatch } = useMockDatabase();
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
 
-  // Inicializa turma e aula a partir da URL (quando clicado em "Fazer chamada agora")
+  // Inicializa turma e aula a partir da URL
   const initialLessonFromUrl = useMemo(() => {
     const lessonIdParam = searchParams.get('lessonId');
     if (lessonIdParam) {
@@ -51,7 +65,6 @@ export const TeacherAttendancePage: React.FC = () => {
     initialLessonFromUrl?.id ?? lessonsForClassRoom[0]?.id ?? ''
   );
 
-  // Atualiza aula selecionada caso a turma mude e a aula atual não pertença a ela
   useEffect(() => {
     const belongs = lessonsForClassRoom.some((l) => l.id === selectedLessonId);
     if (!belongs && lessonsForClassRoom.length > 0) {
@@ -59,7 +72,7 @@ export const TeacherAttendancePage: React.FC = () => {
     }
   }, [lessonsForClassRoom, selectedLessonId]);
 
-  // Alunos com matrícula ativa na turma selecionada
+  // Alunos com matrícula ativa na turma selecionada (ordenados pelo Nome Social / getDisplayName)
   const enrolledStudents = useMemo(() => {
     const activeEnrollments = db.enrollments.filter(
       (e) => e.classRoomId === selectedClassRoomId && e.status === 'ativa'
@@ -71,8 +84,10 @@ export const TeacherAttendancePage: React.FC = () => {
         return person ? { person, enrollment } : null;
       })
       .filter(
-        (item): item is { person: NonNullable<typeof item>['person']; enrollment: NonNullable<typeof item>['enrollment'] } =>
-          Boolean(item)
+        (item): item is {
+          person: NonNullable<typeof item>['person'];
+          enrollment: NonNullable<typeof item>['enrollment'];
+        } => Boolean(item)
       )
       .sort((a, b) =>
         getDisplayName(a.person).localeCompare(getDisplayName(b.person), 'pt-BR')
@@ -84,12 +99,38 @@ export const TeacherAttendancePage: React.FC = () => {
     Record<string, { presence?: AttendancePresence; justification?: string }>
   >({});
 
+  // Controle de Auto-Save (debounce de 600ms)
+  const [hasUnsavedDraftChanges, setHasUnsavedDraftChanges] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+
+  // Refs das linhas de aluno para avanço automático via teclado (P / F / J / ↑ / ↓)
+  const studentRowRefs = useRef<Array<HTMLDivElement | null>>([]);
+
   // Flag para destacar visualmente alunos sem marcação caso o professor tente salvar incompleto
   const [highlightMissingAttempt, setHighlightMissingAttempt] = useState(false);
 
-  // Carrega registros existentes da store quando a aula selecionada muda
+  // Carrega rascunho salvo no localStorage ou registros existentes da store quando a aula muda
   useEffect(() => {
     if (!selectedLessonId) return;
+
+    try {
+      const savedDraftRaw = localStorage.getItem(
+        getAttendanceDraftStorageKey(selectedLessonId)
+      );
+      if (savedDraftRaw) {
+        const parsed = JSON.parse(savedDraftRaw) as AttendanceDraftPayload;
+        if (parsed && parsed.presenceMap) {
+          setDraftPresenceMap(parsed.presenceMap);
+          setDraftSavedAt(parsed.savedAt);
+          setHasUnsavedDraftChanges(false);
+          setHighlightMissingAttempt(false);
+          return;
+        }
+      }
+    } catch {
+      // ignore storage parse error
+    }
+
     const existingRecords = db.attendances.filter(
       (a) => a.lessonId === selectedLessonId
     );
@@ -106,8 +147,35 @@ export const TeacherAttendancePage: React.FC = () => {
     }
 
     setDraftPresenceMap(initialMap);
+    setDraftSavedAt(null);
+    setHasUnsavedDraftChanges(false);
     setHighlightMissingAttempt(false);
   }, [selectedLessonId, db.attendances]);
+
+  // Auto-save com debounce de 600ms no localStorage
+  useEffect(() => {
+    if (!selectedLessonId || !hasUnsavedDraftChanges) return;
+
+    const timer = window.setTimeout(() => {
+      const timeLabel = formatNowTimeHHMM();
+      const payload: AttendanceDraftPayload = {
+        savedAt: timeLabel,
+        presenceMap: draftPresenceMap,
+      };
+      try {
+        localStorage.setItem(
+          getAttendanceDraftStorageKey(selectedLessonId),
+          JSON.stringify(payload)
+        );
+        setDraftSavedAt(timeLabel);
+        setHasUnsavedDraftChanges(false);
+      } catch {
+        // ignore storage quota errors
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [selectedLessonId, draftPresenceMap, hasUnsavedDraftChanges]);
 
   const handleSetStudentPresence = (
     studentPersonId: string,
@@ -120,6 +188,7 @@ export const TeacherAttendancePage: React.FC = () => {
         presence,
       },
     }));
+    setHasUnsavedDraftChanges(true);
   };
 
   const handleSetStudentJustification = (
@@ -133,9 +202,18 @@ export const TeacherAttendancePage: React.FC = () => {
         justification,
       },
     }));
+    setHasUnsavedDraftChanges(true);
   };
 
-  // Ação rápida em lote: "Marcar todos como presentes"
+  const focusStudentRow = (targetIndex: number) => {
+    const el = studentRowRefs.current[targetIndex];
+    if (el) {
+      el.focus();
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  // Ação rápida em lote (Chamada Invertida): "Marcar todos como presentes"
   const handleMarkAllPresent = () => {
     const nextMap: Record<
       string,
@@ -150,16 +228,26 @@ export const TeacherAttendancePage: React.FC = () => {
     }
 
     setDraftPresenceMap(nextMap);
+    setHasUnsavedDraftChanges(true);
     setHighlightMissingAttempt(false);
     showToast({
       variant: 'info',
-      title: 'Todos marcados como Presentes!',
-      description: 'Agora basta alterar apenas quem faltou ou teve falta justificada.',
+      title: 'Todos marcados como Presentes',
+      description: 'Altere apenas os ausentes (F) ou justificados (J).',
     });
   };
 
   const handleClearAllMarks = () => {
     setDraftPresenceMap({});
+    if (selectedLessonId) {
+      try {
+        localStorage.removeItem(getAttendanceDraftStorageKey(selectedLessonId));
+      } catch {
+        // ignore
+      }
+    }
+    setDraftSavedAt(null);
+    setHasUnsavedDraftChanges(false);
     setHighlightMissingAttempt(false);
   };
 
@@ -171,12 +259,8 @@ export const TeacherAttendancePage: React.FC = () => {
   const unmarkedStudents = enrolledStudents.filter(
     ({ person }) => !draftPresenceMap[person.id]?.presence
   );
-  const progressPercentage =
-    totalStudentsCount > 0
-      ? Math.round((markedStudentsCount / totalStudentsCount) * 100)
-      : 0;
 
-  // Validação obrigatória ao clicar em "Salvar Frequência" (Heurística de Prevenção de Erros)
+  // Salvar Frequência e limpar rascunho do localStorage
   const handleSaveAttendance = () => {
     if (!selectedLessonId) return;
 
@@ -186,7 +270,7 @@ export const TeacherAttendancePage: React.FC = () => {
         variant: 'error',
         title: `Faltam ${unmarkedStudents.length} ${
           unmarkedStudents.length === 1 ? 'aluno' : 'alunos'
-        } para marcar!`,
+        } para marcar`,
         description:
           'Destacamos em vermelho os estudantes pendentes para evitar salvamento incompleto.',
       });
@@ -212,6 +296,13 @@ export const TeacherAttendancePage: React.FC = () => {
     });
 
     recordAttendanceBatch(batch, selectedLessonId);
+    try {
+      localStorage.removeItem(getAttendanceDraftStorageKey(selectedLessonId));
+    } catch {
+      // ignore
+    }
+    setDraftSavedAt(null);
+    setHasUnsavedDraftChanges(false);
     setHighlightMissingAttempt(false);
 
     const presentTotal = batch.filter((b) => b.presence === 'presente').length;
@@ -220,33 +311,65 @@ export const TeacherAttendancePage: React.FC = () => {
 
     showToast({
       variant: 'success',
-      title: 'Frequência da turma salva com sucesso!',
-      description: `Registrados: ${presentTotal} presentes, ${absentTotal} faltas e ${justifiedTotal} justificadas. O portal do Aluno e do Responsável já foi atualizado.`,
+      title: 'Frequência salva com sucesso',
+      description: `${presentTotal} presentes, ${absentTotal} faltas e ${justifiedTotal} justificadas.`,
     });
   };
 
   return (
-    <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div>
-        <Badge variant="primary" icon={<ClipboardCheck className="h-4 w-4" />}>
-          Diário de Classe Ágil • Sincronizado em Tempo Real (UC17)
-        </Badge>
-        <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Chamada e Registro de Frequência
-        </h1>
-        <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-          Use o botão <strong>"Marcar todos como presentes"</strong> para ganhar tempo em sala e
-          toque apenas nos estudantes ausentes.
-        </p>
+    <div className="space-y-6">
+      {/* Cabeçalho com Indicador de Auto-Save + Chamada Invertida + CTA Único */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1>Frequência</h1>
+
+          {draftSavedAt && (
+            <span
+              role="status"
+              aria-live="polite"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted"
+            >
+              <span
+                className="h-2 w-2 rounded-full bg-progress"
+                aria-hidden="true"
+              />
+              <span>
+                Rascunho salvo às <strong className="num text-ink">{draftSavedAt}</strong>
+              </span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearAllMarks}
+            leftIcon={<RotateCcw className="h-4 w-4" />}
+          >
+            Limpar
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={handleMarkAllPresent}
+            leftIcon={<CheckCheck className="h-4 w-4" />}
+          >
+            Marcar todos como presentes
+          </Button>
+
+          <Button
+            variant="primary"
+            leftIcon={<Save className="h-4 w-4" />}
+            onClick={handleSaveAttendance}
+          >
+            Salvar Frequência ({markedStudentsCount}/{totalStudentsCount})
+          </Button>
+        </div>
       </div>
 
-      {/* 1. SELEÇÃO DA TURMA E DA AULA */}
-      <Card
-        as="section"
-        title="1. Selecionar Turma e Aula"
-        subtitle="Escolha a turma e o encontro para carregar a lista de estudantes matriculados."
-      >
+      {/* Barra de Ferramentas: Seleção de Turma e Aula + Legenda Discreta de Atalhos no Rodapé */}
+      <div className="rounded-lg border border-line bg-surface p-4 space-y-3">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Select
             label="Turma"
@@ -259,7 +382,7 @@ export const TeacherAttendancePage: React.FC = () => {
           />
 
           <Select
-            label="Aula do Plano de Ensino"
+            label="Aula"
             value={selectedLessonId}
             onChange={(e) => setSelectedLessonId(e.target.value)}
             options={
@@ -273,145 +396,106 @@ export const TeacherAttendancePage: React.FC = () => {
                       }`,
                     };
                   })
-                : [{ value: '', label: 'Nenhuma aula cadastrada para esta turma' }]
+                : [{ value: '', label: 'Nenhuma aula cadastrada' }]
             }
           />
         </div>
-      </Card>
 
-      {/* 2. BARRA DE PROGRESSO DA CHAMADA + AÇÃO RÁPIDA EM LOTE */}
-      <Card
-        as="section"
-        title="2. Registro de Presença dos Estudantes"
-        subtitle="Todos os estudantes da turma precisam ter uma opção marcada antes de salvar."
-        headerAction={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={handleClearAllMarks}
-              leftIcon={<RotateCcw className="h-4 w-4" />}
-            >
-              Limpar marcações
-            </Button>
-
-            <Button
-              variant="secondary"
-              onClick={handleMarkAllPresent}
-              leftIcon={<CheckCheck className="h-5 w-5" />}
-            >
-              Marcar todos como presentes
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-6">
-          {/* Barra de Progresso ("10 de 12 marcados") */}
-          <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <span className="inline-flex items-center gap-2 text-base font-extrabold text-slate-900 dark:text-white">
-                <Users className="h-5 w-5 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                <span>
-                  Progresso da chamada: {markedStudentsCount} de {totalStudentsCount}{' '}
-                  {totalStudentsCount === 1 ? 'aluno marcado' : 'alunos marcados'}
-                </span>
-              </span>
-
-              <Badge
-                variant={
-                  markedStudentsCount === totalStudentsCount ? 'success' : 'warning'
-                }
-              >
-                {markedStudentsCount === totalStudentsCount
-                  ? '100% pronto para salvar'
-                  : `Faltam ${totalStudentsCount - markedStudentsCount} para marcar`}
-              </Badge>
-            </div>
-
-            <div
-              role="progressbar"
-              aria-label="Progresso de preenchimento da lista de chamada"
-              aria-valuenow={progressPercentage}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              className="h-3.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
-            >
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  markedStudentsCount === totalStudentsCount
-                    ? 'bg-emerald-700 dark:bg-emerald-500'
-                    : 'bg-primary-700 dark:bg-primary-500'
-                }`}
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
+        {/* Legenda discreta dos atalhos de teclado no rodapé da barra de ferramentas */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2.5 text-xs text-ink-muted">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+              <Keyboard className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+              <span>Operação por teclado (foque um aluno):</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <kbd className="num rounded border border-progress-border bg-progress-bg px-1.5 py-0.5 text-[11px] font-bold text-progress">
+                P
+              </kbd>
+              <span>Presente</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <kbd className="num rounded border border-critical-border bg-critical-bg px-1.5 py-0.5 text-[11px] font-bold text-critical">
+                F
+              </kbd>
+              <span>Falta</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <kbd className="num rounded border border-assess-border bg-assess-bg px-1.5 py-0.5 text-[11px] font-bold text-assess-ink">
+                J
+              </kbd>
+              <span>Justificada</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <kbd className="num rounded border border-line bg-subtle px-1.5 py-0.5 text-[11px] font-semibold text-ink">
+                ↑ / ↓
+              </kbd>
+              <span>Navegar lista</span>
+            </span>
           </div>
 
-          {/* Alerta de Prevenção de Erros caso o professor tenha tentado salvar incompleto */}
-          {highlightMissingAttempt && unmarkedStudents.length > 0 && (
-            <CalloutAlert
-              variant="error"
-              title={`Não foi possível salvar: há ${unmarkedStudents.length} ${
-                unmarkedStudents.length === 1
-                  ? 'estudante sem marcação'
-                  : 'estudantes sem marcação'
-              }`}
-            >
-              Para evitar erros no histórico de frequência, marque{' '}
-              <strong>Presente</strong>, <strong>Falta</strong> ou{' '}
-              <strong>Justificada</strong> para:{' '}
-              <strong>
-                {unmarkedStudents.map((u) => getDisplayName(u.person)).join(', ')}
-              </strong>
-              .
-            </CalloutAlert>
-          )}
-
-          {/* Lista de Estudantes usando o componente reutilizável StudentCard */}
-          <div className="space-y-3">
-            {enrolledStudents.map(({ person, enrollment }) => {
-              const entry = draftPresenceMap[person.id];
-              const isMissing =
-                highlightMissingAttempt && !entry?.presence;
-              const accumulatedPct = getStudentAttendancePercentage(person.id);
-
-              return (
-                <StudentCard
-                  key={person.id}
-                  student={person}
-                  enrollmentCode={enrollment.enrollmentCode}
-                  accumulatedAttendancePercentage={accumulatedPct}
-                  selectedPresence={entry?.presence}
-                  justification={entry?.justification}
-                  onChangePresence={(presence) =>
-                    handleSetStudentPresence(person.id, presence)
-                  }
-                  onChangeJustification={(just) =>
-                    handleSetStudentJustification(person.id, just)
-                  }
-                  isHighlightedAsMissing={isMissing}
-                />
-              );
-            })}
-          </div>
-
-          {/* Rodapé de Ação Principal */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Ao salvar, a porcentagem de presença de cada estudante é recalculada
-              automaticamente.
-            </p>
-
-            <Button
-              variant="primary"
-              size="lg"
-              leftIcon={<Save className="h-5 w-5" />}
-              onClick={handleSaveAttendance}
-            >
-              Salvar Frequência da Turma ({markedStudentsCount}/{totalStudentsCount})
-            </Button>
-          </div>
+          <button
+            type="button"
+            onClick={() => focusStudentRow(0)}
+            className="text-xs font-medium text-academic hover:underline"
+          >
+            Focar 1º aluno da lista →
+          </button>
         </div>
-      </Card>
+      </div>
+
+      {/* Lista de Chamada */}
+      <div className="space-y-3">
+        {highlightMissingAttempt && unmarkedStudents.length > 0 && (
+          <CalloutAlert
+            variant="error"
+            title={`Marque a presença de ${unmarkedStudents.length} ${
+              unmarkedStudents.length === 1 ? 'estudante pendente' : 'estudantes pendentes'
+            }`}
+          >
+            Pendentes: {unmarkedStudents.map((u) => getDisplayName(u.person)).join(', ')}.
+          </CalloutAlert>
+        )}
+
+        <div className="space-y-2.5">
+          {enrolledStudents.map(({ person, enrollment }, idx) => {
+            const entry = draftPresenceMap[person.id];
+            const isMissing = highlightMissingAttempt && !entry?.presence;
+            const accumulatedPct = getStudentAttendancePercentage(person.id);
+
+            return (
+              <StudentCard
+                key={person.id}
+                ref={(el) => {
+                  studentRowRefs.current[idx] = el;
+                }}
+                student={person}
+                enrollmentCode={enrollment.enrollmentCode}
+                accumulatedAttendancePercentage={accumulatedPct}
+                selectedPresence={entry?.presence}
+                justification={entry?.justification}
+                onChangePresence={(presence) =>
+                  handleSetStudentPresence(person.id, presence)
+                }
+                onChangeJustification={(just) =>
+                  handleSetStudentJustification(person.id, just)
+                }
+                isHighlightedAsMissing={isMissing}
+                onAdvanceNext={() => {
+                  if (idx + 1 < enrolledStudents.length) {
+                    focusStudentRow(idx + 1);
+                  }
+                }}
+                onMovePrev={() => {
+                  if (idx - 1 >= 0) {
+                    focusStudentRow(idx - 1);
+                  }
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

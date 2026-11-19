@@ -4,17 +4,15 @@ import {
   Calendar,
   Clock,
   MapPin,
-  Megaphone,
   Users,
 } from 'lucide-react';
 import {
   Badge,
-  CalloutAlert,
   Card,
 } from '../../components/ui';
 import { useSession } from '../../contexts/SessionContext';
 import { useMockDatabase } from '../../contexts/MockDatabaseContext';
-import { formatDateBR, getDisplayName } from '../../utils/formatters';
+import { formatDateBR } from '../../utils/formatters';
 import {
   GuardianCoordinationSupportBox,
   GuardianStudentSelectorBar,
@@ -113,76 +111,54 @@ export const GuardianNoticesPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Cabeçalho Linear */}
-      <header className="space-y-2">
-        <Badge variant="primary" icon={<Megaphone className="h-4 w-4" />}>
-          Comunicação entre Cursinho e Família
-        </Badge>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Avisos da Turma e Reuniões de Responsáveis
-        </h1>
-        <p className="text-base sm:text-lg text-slate-700 dark:text-slate-200 leading-relaxed">
-          Esta página reúne os convites para encontros de pais/responsáveis e os comunicados
-          importantes sobre as aulas da turma.
-        </p>
-      </header>
+      {/* Cabeçalho enxuto + Segmented Control Suave (Regra 1 e 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Calendário</h1>
 
-      {/* Seletor de Estudante Vinculado */}
+        <div
+          role="group"
+          aria-label="Escolher tipo de aviso"
+          className="flex flex-wrap gap-1 rounded-md bg-track p-1"
+        >
+          {FILTER_BUTTONS.map((btn) => {
+            const isActive = filter === btn.value;
+            return (
+              <button
+                key={btn.value}
+                type="button"
+                onClick={() => setFilter(btn.value)}
+                aria-pressed={isActive}
+                className={`h-8 rounded px-2.5 text-xs transition-all ${
+                  isActive
+                    ? 'bg-surface font-semibold text-ink shadow-xs'
+                    : 'font-medium text-ink-muted hover:text-ink'
+                }`}
+              >
+                {btn.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <GuardianStudentSelectorBar />
 
       {student && linkedStudentsForGuardian.length > 0 && (
         <>
-          {/* Destaque do Próximo Encontro de Famílias */}
-          <CalloutAlert
-            variant="info"
-            title={`Convite especial para a família de ${getDisplayName(student)}`}
-          >
-            Nossa próxima <strong>Roda de Conversa com Pais, Mães e Responsáveis</strong> será no
-            dia <strong>25/11/2026 (quarta-feira), às 19h00</strong>, na Sala 01 do Cursinho
-            Bonsucesso. Sua presença é muito bem-vinda!
-          </CalloutAlert>
-
-          {/* Botões Grandes de Filtro */}
           <Card
             as="section"
-            title={`Comunicados para a ${studentClassRoom?.name ?? 'Turma do Estudante'}`}
-            subtitle="Toque em uma das opções abaixo se quiser filtrar apenas reuniões de pais ou simulados."
+            title={`Comunicados — ${studentClassRoom?.name ?? 'Turma'}`}
           >
-            <div className="space-y-6">
-              <div
-                role="group"
-                aria-label="Escolher tipo de aviso"
-                className="flex flex-wrap gap-2.5"
-              >
-                {FILTER_BUTTONS.map((btn) => {
-                  const isActive = filter === btn.value;
-                  return (
-                    <button
-                      key={btn.value}
-                      type="button"
-                      onClick={() => setFilter(btn.value)}
-                      aria-pressed={isActive}
-                      className={`min-h-[48px] rounded-xl border-2 px-4 py-2.5 text-base font-bold transition-all ${
-                        isActive
-                          ? 'border-primary-700 bg-primary-700 text-white shadow-xs dark:border-primary-500 dark:bg-primary-600'
-                          : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {btn.label}
-                    </button>
-                  );
-                })}
-              </div>
-
+            <div className="space-y-4">
               {/* Lista Linear de Avisos */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {filteredNotices.map((notice) => (
                   <article
                     key={notice.id}
                     className={`rounded-2xl border-2 p-5 transition-all space-y-3 ${
                       notice.isHighlighted
-                        ? 'border-primary-600 bg-primary-50/40 dark:border-primary-500 dark:bg-primary-950/30'
-                        : 'border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950/50'
+                        ? 'border-primary-600 bg-primary-50/40'
+                        : 'border-slate-200 bg-slate-50/70'
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -199,30 +175,30 @@ export const GuardianNoticesPage: React.FC = () => {
                         {notice.categoryLabel}
                       </Badge>
 
-                      <span className="inline-flex items-center gap-1.5 text-base font-extrabold text-slate-900 dark:text-white">
-                        <Calendar className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                      <span className="inline-flex items-center gap-1.5 text-base font-extrabold text-slate-900">
+                        <Calendar className="h-4 w-4 text-primary-700" aria-hidden="true" />
                         <span>Data: {formatDateBR(notice.date)}</span>
                       </span>
                     </div>
 
-                    <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                    <h3 className="text-xl font-extrabold text-slate-900">
                       {notice.title}
                     </h3>
 
-                    <p className="text-base sm:text-lg text-slate-800 dark:text-slate-100 leading-relaxed">
+                    <p className="text-base sm:text-lg text-slate-800 leading-relaxed">
                       {notice.plainExplanation}
                     </p>
 
-                    <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700">
                       {notice.timeRange && (
                         <span className="inline-flex items-center gap-1.5">
-                          <Clock className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                          <Clock className="h-4 w-4 text-primary-700" aria-hidden="true" />
                           <span>Horário: {notice.timeRange}</span>
                         </span>
                       )}
                       {notice.location && (
                         <span className="inline-flex items-center gap-1.5">
-                          <MapPin className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                          <MapPin className="h-4 w-4 text-primary-700" aria-hidden="true" />
                           <span>Local: {notice.location}</span>
                         </span>
                       )}

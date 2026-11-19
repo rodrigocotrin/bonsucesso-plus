@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   BookOpen,
-  Calendar,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -114,33 +113,23 @@ export const StudentClassesPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho da Página */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Badge variant="primary" icon={<Calendar className="h-4 w-4" />}>
+          <h1>Minhas Aulas</h1>
+          <p className="text-xs text-ink-muted">
             {studentClassRoom.name} • {studentClassRoom.scheduleSummary}
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Minhas Aulas e Grade da Turma
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Toque em qualquer aula da semana ou do histórico recente para ver o conteúdo
-            programático, o(a) professor(a) voluntário(a) e o link para o Google Sala de Aula.
           </p>
         </div>
       </div>
 
-      {/* 1. GRADE SEMANAL DA TURMA (Lista por Dia no Mobile / Colunas no Desktop) */}
-      <Card
-        as="section"
-        title="Grade Semanal da Sua Turma"
-        subtitle="Clique sobre uma aula para abrir os detalhes completos e acessar os links de estudo."
-      >
-        {/* Seletor de Dia para Telas Mobile */}
+      {/* 1. GRADE SEMANAL DA TURMA */}
+      <Card as="section" title="Grade Semanal">
+        {/* Seletor de Dia Mobile: Segmented Control Suave (sem pills pretas) */}
         <div
           role="tablist"
           aria-label="Escolher dia da semana"
-          className="flex lg:hidden overflow-x-auto gap-2 pb-4 mb-2 border-b border-slate-200 dark:border-slate-800"
+          className="mb-4 flex gap-1 overflow-x-auto rounded-md bg-track p-1 lg:hidden"
         >
           {DAYS_OF_WEEK.map((day) => {
             const isSelected = selectedDayMobile === day;
@@ -151,13 +140,13 @@ export const StudentClassesPage: React.FC = () => {
                 role="tab"
                 aria-selected={isSelected}
                 onClick={() => setSelectedDayMobile(day)}
-                className={`min-h-[44px] shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+                className={`h-8 shrink-0 rounded px-3 text-xs transition-colors ${
                   isSelected
-                    ? 'bg-primary-700 text-white shadow-xs dark:bg-primary-600'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200'
+                    ? 'bg-surface font-semibold text-ink shadow-xs'
+                    : 'font-medium text-ink-muted hover:text-ink'
                 }`}
               >
-                {day}-feira
+                {day}
               </button>
             );
           })}
@@ -171,23 +160,23 @@ export const StudentClassesPage: React.FC = () => {
                 key={slot.id}
                 type="button"
                 onClick={() => setSelectedLessonModal(slot)}
-                className="w-full text-left rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 hover:border-primary-600 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:border-primary-400 transition-all"
+                className="w-full text-left rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 hover:border-primary-600 hover:bg-white transition-all"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-primary-800 dark:text-primary-300">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-primary-800">
                     {slot.startTime} às {slot.endTime}
                   </span>
                   <Badge variant={slot.externalClassroomUrl ? 'primary' : 'neutral'}>
                     {slot.externalClassroomUrl ? 'Com link Classroom' : 'Presencial'}
                   </Badge>
                 </div>
-                <h3 className="mt-1 text-lg font-extrabold text-slate-900 dark:text-white">
+                <h3 className="mt-1 text-lg font-extrabold text-slate-900">
                   {slot.subjectName}
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 mt-0.5">
+                <p className="text-sm text-slate-600 mt-0.5">
                   {slot.teacherName} • {slot.roomLabel}
                 </p>
-                <p className="mt-3 text-xs font-bold text-primary-800 dark:text-primary-300">
+                <p className="mt-3 text-xs font-bold text-primary-800">
                   Toque para ver conteúdo programático →
                 </p>
               </button>
@@ -205,10 +194,10 @@ export const StudentClassesPage: React.FC = () => {
             return (
               <div
                 key={day}
-                className="flex flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-950/40"
+                className="flex flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-3"
               >
-                <div className="mb-3 border-b border-slate-200 pb-2 text-center dark:border-slate-800">
-                  <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                <div className="mb-3 border-b border-slate-200 pb-2 text-center">
+                  <span className="text-base font-extrabold text-slate-900">
                     {day}-feira
                   </span>
                 </div>
@@ -217,25 +206,25 @@ export const StudentClassesPage: React.FC = () => {
                   {slotsForDay.map((slot, index) => (
                     <React.Fragment key={slot.id}>
                       {index === 1 && (
-                        <div className="rounded-lg border border-dashed border-amber-400/70 bg-amber-50/70 px-2 py-1.5 text-center text-xs font-bold text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                        <div className="rounded-lg border border-dashed border-amber-400/70 bg-amber-50/70 px-2 py-1.5 text-center text-xs font-bold text-amber-900">
                           20:30 - 20:45 • Intervalo e Lanche
                         </div>
                       )}
                       <button
                         type="button"
                         onClick={() => setSelectedLessonModal(slot)}
-                        className="w-full text-left rounded-xl border-2 border-slate-200 bg-white p-3.5 shadow-2xs transition-all hover:border-primary-600 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-primary-400"
+                        className="w-full text-left rounded-xl border-2 border-slate-200 bg-white p-3.5 shadow-2xs transition-all hover:border-primary-600 hover:shadow-md"
                       >
-                        <span className="block text-xs font-extrabold text-primary-800 dark:text-primary-300">
+                        <span className="block text-xs font-extrabold text-primary-800">
                           {slot.startTime} às {slot.endTime}
                         </span>
-                        <h4 className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">
+                        <h4 className="mt-1 text-base font-extrabold text-slate-900">
                           {slot.subjectName}
                         </h4>
-                        <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                        <p className="mt-1 text-xs font-medium text-slate-600">
                           {slot.teacherName}
                         </p>
-                        <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-primary-800 dark:text-primary-300">
+                        <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-primary-800">
                           <span>Ver detalhes</span>
                           <span aria-hidden="true">→</span>
                         </div>
@@ -261,11 +250,11 @@ export const StudentClassesPage: React.FC = () => {
             return (
               <div
                 key={item.lesson.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/50"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
               >
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-extrabold text-primary-900 dark:text-primary-300">
+                    <span className="text-sm font-extrabold text-primary-900">
                       {formatDateBR(item.lesson.date)} • {item.lesson.startTime} às{' '}
                       {item.lesson.endTime}
                     </span>
@@ -290,11 +279,11 @@ export const StudentClassesPage: React.FC = () => {
                     )}
                   </div>
 
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  <h3 className="text-base font-bold text-slate-900">
                     {item.lesson.topic}
                   </h3>
 
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                  <p className="text-sm text-slate-600">
                     {item.teacherName} • {studentClassRoom.roomLabel}
                   </p>
                 </div>
@@ -337,26 +326,26 @@ export const StudentClassesPage: React.FC = () => {
         {selectedLessonModal && (
           <div className="space-y-5">
             {/* Professor Voluntário e Sala */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2.5">
-                <User className="h-5 w-5 text-primary-700 dark:text-primary-400 shrink-0" aria-hidden="true" />
+                <User className="h-5 w-5 text-primary-700 shrink-0" aria-hidden="true" />
                 <div>
-                  <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="block text-xs font-semibold text-slate-500">
                     Professor(a) Voluntário(a)
                   </span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  <span className="text-sm font-bold text-slate-900">
                     {selectedLessonModal.teacherName}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5">
-                <MapPin className="h-5 w-5 text-primary-700 dark:text-primary-400 shrink-0" aria-hidden="true" />
+                <MapPin className="h-5 w-5 text-primary-700 shrink-0" aria-hidden="true" />
                 <div>
-                  <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="block text-xs font-semibold text-slate-500">
                     Local do Encontro
                   </span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  <span className="text-sm font-bold text-slate-900">
                     {selectedLessonModal.roomLabel}
                   </span>
                 </div>
@@ -365,17 +354,17 @@ export const StudentClassesPage: React.FC = () => {
 
             {/* Conteúdo Programático para o ENEM */}
             <div>
-              <h4 className="text-base font-extrabold text-slate-900 dark:text-white mb-2">
+              <h4 className="text-base font-extrabold text-slate-900 mb-2">
                 Conteúdo Programático (Foco ENEM)
               </h4>
-              <ul className="space-y-2 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+              <ul className="space-y-2 rounded-xl border border-slate-200 p-4">
                 {selectedLessonModal.syllabusTopics.map((topic, idx) => (
                   <li
                     key={idx}
-                    className="flex items-start gap-2.5 text-sm text-slate-800 dark:text-slate-200"
+                    className="flex items-start gap-2.5 text-sm text-slate-800"
                   >
                     <CheckCircle2
-                      className="h-4 w-4 text-primary-700 dark:text-primary-400 shrink-0 mt-0.5"
+                      className="h-4 w-4 text-primary-700 shrink-0 mt-0.5"
                       aria-hidden="true"
                     />
                     <span>{topic}</span>
@@ -385,18 +374,18 @@ export const StudentClassesPage: React.FC = () => {
             </div>
 
             {/* Orientação de Estudo */}
-            <div className="rounded-xl bg-primary-50/70 border border-primary-200 p-4 dark:bg-primary-950/40 dark:border-primary-800">
-              <p className="text-xs font-extrabold uppercase tracking-wider text-primary-900 dark:text-primary-200">
+            <div className="rounded-xl bg-primary-50/70 border border-primary-200 p-4">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-primary-900">
                 Dica de Estudo do(a) Professor(a)
               </p>
-              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">
+              <p className="mt-1 text-sm text-slate-800">
                 {selectedLessonModal.studyGuideNotes}
               </p>
             </div>
 
             {/* Tratamento cuidadoso do Link Externo (Google Sala de Aula / Vídeo de apoio) */}
-            <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+            <div className="space-y-3 pt-2 border-t border-slate-200">
+              <h4 className="text-base font-extrabold text-slate-900">
                 Materiais Digitais e Google Sala de Aula
               </h4>
 
@@ -408,7 +397,7 @@ export const StudentClassesPage: React.FC = () => {
                       href={selectedLessonModal.externalClassroomUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex flex-1 min-h-[48px] items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-base font-bold text-white shadow-xs hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-500 transition-colors"
+                      className="inline-flex flex-1 min-h-[48px] items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-base font-bold text-white shadow-xs hover:bg-primary-800 transition-colors"
                     >
                       <BookOpen className="h-5 w-5" aria-hidden="true" />
                       <span>Abrir Google Sala de Aula</span>
@@ -421,7 +410,7 @@ export const StudentClassesPage: React.FC = () => {
                       href={selectedLessonModal.supportVideoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex flex-1 min-h-[48px] items-center justify-center gap-2 rounded-xl bg-secondary-700 px-4 py-2.5 text-base font-bold text-white shadow-xs hover:bg-secondary-800 dark:bg-secondary-600 dark:hover:bg-secondary-500 transition-colors"
+                      className="inline-flex flex-1 min-h-[48px] items-center justify-center gap-2 rounded-xl bg-secondary-700 px-4 py-2.5 text-base font-bold text-white shadow-xs hover:bg-secondary-800 transition-colors"
                     >
                       <Video className="h-5 w-5" aria-hidden="true" />
                       <span>Assistir Vídeo de Apoio</span>

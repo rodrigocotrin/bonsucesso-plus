@@ -1,6 +1,9 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle2, Info, ShieldAlert, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { AlertTriangle, CheckCircle2, Info, OctagonAlert, X } from 'lucide-react';
 import { cn } from '../../utils/formatters';
+import { VARIANTS } from '../../lib/motion';
+import { SemanticTone, TONE_FILL, TONE_TEXT } from './tones';
 
 export type ToastVariant = 'info' | 'success' | 'warning' | 'error';
 
@@ -15,43 +18,20 @@ export interface ToastNotificationProps extends ToastItem {
   onDismiss: (id: string) => void;
 }
 
-const TOAST_STYLES: Record<
+const TOAST_CONFIG: Record<
   ToastVariant,
-  {
-    wrapper: string;
-    icon: React.ReactNode;
-    prefix: string;
-  }
+  { tone: SemanticTone; Icon: typeof Info; prefix: string }
 > = {
-  info: {
-    wrapper:
-      'border-secondary-600 bg-white text-slate-900 dark:border-secondary-400 dark:bg-slate-900 dark:text-slate-100',
-    icon: <Info className="h-6 w-6 text-secondary-700 dark:text-secondary-400 shrink-0" aria-hidden="true" />,
-    prefix: 'Informação:',
-  },
-  success: {
-    wrapper:
-      'border-success-700 bg-white text-slate-900 dark:border-emerald-500 dark:bg-slate-900 dark:text-slate-100',
-    icon: <CheckCircle2 className="h-6 w-6 text-success-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />,
-    prefix: 'Sucesso:',
-  },
-  warning: {
-    wrapper:
-      'border-warning-700 bg-white text-slate-900 dark:border-amber-500 dark:bg-slate-900 dark:text-slate-100',
-    icon: <AlertTriangle className="h-6 w-6 text-warning-700 dark:text-amber-400 shrink-0" aria-hidden="true" />,
-    prefix: 'Atenção:',
-  },
-  error: {
-    wrapper:
-      'border-danger-700 bg-white text-slate-900 dark:border-red-500 dark:bg-slate-900 dark:text-slate-100',
-    icon: <ShieldAlert className="h-6 w-6 text-danger-700 dark:text-red-400 shrink-0" aria-hidden="true" />,
-    prefix: 'Erro:',
-  },
+  info: { tone: 'academic', Icon: Info, prefix: 'Informação:' },
+  success: { tone: 'progress', Icon: CheckCircle2, prefix: 'Confirmado:' },
+  warning: { tone: 'assess', Icon: AlertTriangle, prefix: 'Atenção:' },
+  error: { tone: 'critical', Icon: OctagonAlert, prefix: 'Erro:' },
 };
 
 /**
- * Notificação Toast individual — Heurística #1 de Nielsen (Visibilidade do Status do Sistema).
- * Sempre apresenta ícone + título + botão de fechar rotulado.
+ * Toast Notification (Seção 2.D):
+ * Entra deslizando de baixo para cima (y: 12 -> 0, opacity: 0 -> 1 em 180ms)
+ * e sai com fade rápido (120ms).
  */
 export const ToastNotification: React.FC<ToastNotificationProps> = ({
   id,
@@ -60,28 +40,30 @@ export const ToastNotification: React.FC<ToastNotificationProps> = ({
   variant = 'info',
   onDismiss,
 }) => {
-  const style = TOAST_STYLES[variant];
+  const { tone, Icon, prefix } = TOAST_CONFIG[variant];
 
   return (
-    <div
+    <motion.div
+      layout
+      variants={VARIANTS.toast}
+      initial="initial"
+      animate="animate"
+      exit="exit"
       role={variant === 'error' || variant === 'warning' ? 'alert' : 'status'}
       aria-live="polite"
-      className={cn(
-        'pointer-events-auto flex w-full max-w-md items-start justify-between gap-3 rounded-2xl border-l-8 border border-slate-200 p-4 shadow-xl dark:border-slate-700 transition-all',
-        style.wrapper
-      )}
+      className="pointer-events-auto relative flex w-full max-w-md items-start justify-between gap-3 overflow-hidden rounded-lg border border-line bg-surface py-3 pl-5 pr-3 shadow-sm"
     >
+      <span className={cn('absolute inset-y-0 left-0 w-1', TONE_FILL[tone])} aria-hidden="true" />
+
       <div className="flex items-start gap-3">
-        <span className="mt-0.5">{style.icon}</span>
-        <div>
-          <p className="text-base font-bold leading-snug">
-            <span className="sr-only">{style.prefix} </span>
+        <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', TONE_TEXT[tone])} aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold leading-snug text-ink">
+            <span className="sr-only">{prefix} </span>
             {title}
           </p>
           {description && (
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              {description}
-            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{description}</p>
           )}
         </div>
       </div>
@@ -89,12 +71,12 @@ export const ToastNotification: React.FC<ToastNotificationProps> = ({
       <button
         type="button"
         onClick={() => onDismiss(id)}
-        className="inline-flex min-h-[38px] shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        aria-label="Fechar notificação"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted transition-all duration-150 ease-out hover:bg-subtle hover:text-ink active:scale-95"
       >
-        <X className="h-3.5 w-3.5" aria-hidden="true" />
-        <span>Fechar</span>
+        <X className="h-4 w-4" aria-hidden="true" />
       </button>
-    </div>
+    </motion.div>
   );
 };
 
@@ -104,16 +86,16 @@ export interface ToastContainerProps {
 }
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {
-  if (toasts.length === 0) return null;
-
   return (
     <div
       aria-label="Notificações do sistema"
-      className="fixed bottom-4 right-4 z-50 flex flex-col gap-3 w-full max-w-md px-4 sm:px-0 pointer-events-none"
+      className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-full max-w-md flex-col gap-2 px-4 sm:px-0"
     >
-      {toasts.map((toast) => (
-        <ToastNotification key={toast.id} {...toast} onDismiss={onDismiss} />
-      ))}
+      <AnimatePresence initial={false}>
+        {toasts.map((toast) => (
+          <ToastNotification key={toast.id} {...toast} onDismiss={onDismiss} />
+        ))}
+      </AnimatePresence>
     </div>
   );
 };

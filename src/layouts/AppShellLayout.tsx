@@ -1,27 +1,53 @@
-import React, { useState } from 'react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BookHeart,
   ChevronRight,
+  ExternalLink,
   LogOut,
   Menu,
+  Monitor,
+  Moon,
+  MoreHorizontal,
+  Palette,
   PanelLeftClose,
   PanelLeftOpen,
   RotateCcw,
-  Sparkles,
-  Users,
+  Search,
+  Settings,
+  ShieldCheck,
+  Sun,
+  UserCircle,
   X,
 } from 'lucide-react';
-import { ConfirmDialog } from '../components/ui';
+import {
+  Badge,
+  BrandLoader,
+  BrandLockup,
+  Button,
+  CommandPalette,
+  CommandPaletteNavEntry,
+  ConfirmDialog,
+  SlideOverDrawer,
+} from '../components/ui';
+import { useTheme } from '../contexts/AccessibilityContext';
 import { useSession } from '../contexts/SessionContext';
 import { useMockDatabase } from '../contexts/MockDatabaseContext';
 import { useToast } from '../contexts/ToastContext';
-import { ROLE_NAVIGATION_MENUS } from './navigationConfig';
+import { DURATIONS, EASINGS, SPRINGS, VARIANTS } from '../lib/motion';
+import { getDisplayName, getLegalName, hasSocialName } from '../lib/person';
+import {
+  resolveActiveNavMenuItem,
+  ROLE_NAVIGATION_MENUS,
+} from './navigationConfig';
 import { UserRole } from '../types';
 import {
+  calculateSimpleEnemAverage,
   cn,
+  formatDateBR,
+  formatEnemScore,
   getDefaultRouteForRole,
-  getDisplayName,
+  getInitials,
   getRoleDisplayLabel,
 } from '../utils/formatters';
 
@@ -29,12 +55,28 @@ export interface AppShellLayoutProps {
   children: React.ReactNode;
 }
 
-const ROLE_OPTIONS_FOR_PROTOTYPE: Array<{ role: UserRole; label: string }> = [
-  { role: 'student', label: 'Aluno (Mariana)' },
-  { role: 'guardian', label: 'Responsável (Dona Helena)' },
-  { role: 'teacher', label: 'Professor (Prof. Carlos)' },
-  { role: 'coordinator', label: 'Coordenadora (Ana Paula)' },
+const PROTOTYPE_ROLE_SWITCHER: Array<{
+  role: UserRole;
+  shortLabel: string;
+}> = [
+  { role: 'coordinator', shortLabel: 'Coordenador' },
+  { role: 'teacher', shortLabel: 'Professor' },
+  { role: 'student', shortLabel: 'Aluno' },
+  { role: 'guardian', shortLabel: 'Responsável' },
 ];
+
+function getProfileSettingsPaths(role: UserRole): { profile: string; settings: string } {
+  switch (role) {
+    case 'coordinator':
+      return { profile: '/coordenacao/perfil', settings: '/coordenacao/configuracoes' };
+    case 'teacher':
+      return { profile: '/professor/perfil', settings: '/professor/configuracoes' };
+    case 'student':
+      return { profile: '/aluno/perfil', settings: '/aluno/configuracoes' };
+    case 'guardian':
+      return { profile: '/responsavel/perfil', settings: '/responsavel/configuracoes' };
+  }
+}
 
 export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
   const {
@@ -46,15 +88,41 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
     selectedStudentForGuardian,
     setSelectedStudentIdForGuardian,
   } = useSession();
-  const { resetDemoData } = useMockDatabase();
+  const { db, resetDemoData, getStudentAttendancePercentage } = useMockDatabase();
+  const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isSwitchingRole, setIsSwitchingRole] = useState(false);
+
+  // Slide-over Drawer Rápido de Aluno (acionado pelo Command Palette Ctrl+K)
+  const [quickDrawerStudentId, setQuickDrawerStudentId] = useState<string | null>(null);
+  const [quickDrawerTab, setQuickDrawerTab] = useState<string>('resumo');
+
+  // Atalho global Ctrl+K / Cmd+K
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!isSwitchingRole) return;
+    const timer = window.setTimeout(() => setIsSwitchingRole(false), 180);
+    return () => window.clearTimeout(timer);
+  }, [isSwitchingRole]);
 
   if (!currentAccount || !currentPerson) {
     return <>{children}</>;
@@ -62,18 +130,18 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
 
   const role = currentAccount.role;
   const menuItems = ROLE_NAVIGATION_MENUS[role];
-  const mobileBottomItems = menuItems.filter((item) => item.showInMobileBottomBar).slice(0, 4);
-  const activeMenuItem =
-    menuItems.find((item) => item.path === location.pathname) ?? menuItems[0];
+  // Bottom Navigation Bar Mobile (4 a 5 itens principais do perfil)
+  const mobileBottomItems = menuItems.slice(0, 5);
+  const activeMenuItem = resolveActiveNavMenuItem(menuItems, location.pathname);
+  const activeSubTab = activeMenuItem?.subTabs?.find((t) => t.path === location.pathname);
+  const accountPaths = getProfileSettingsPaths(role);
+  const displayName = getDisplayName(currentPerson);
 
   const handlePrototypeRoleSwitch = (newRole: UserRole) => {
+    if (newRole === role) return;
+    setIsSwitchingRole(true);
     const result = quickLoginAsRole(newRole);
     if (result.success && result.role) {
-      showToast({
-        variant: 'info',
-        title: `Modo Protótipo: Perfil alterado para ${getRoleDisplayLabel(result.role)}`,
-        description: 'Navegando para o painel correspondente.',
-      });
       navigate(getDefaultRouteForRole(result.role));
     }
   };
@@ -83,8 +151,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
     logout();
     showToast({
       variant: 'info',
-      title: 'Você saiu da sua conta com segurança',
-      description: 'Até breve no Cursinho Comunitário Bonsucesso!',
+      title: 'Sessão encerrada',
     });
     navigate('/login', { replace: true });
   };
@@ -94,472 +161,1089 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
     resetDemoData();
     showToast({
       variant: 'success',
-      title: 'Dados de demonstração restaurados!',
-      description: 'Todos os registros voltaram ao estado inicial do Cursinho Bonsucesso.',
+      title: 'Base de demonstração restaurada',
     });
   };
 
-  const displayName = getDisplayName(currentPerson);
+  // Entradas de navegação permitidas ao perfil ativo para o Command Palette (RBAC)
+  const commandNavEntries = useMemo<CommandPaletteNavEntry[]>(() => {
+    const list: CommandPaletteNavEntry[] = [];
+    for (const item of menuItems) {
+      list.push({
+        id: item.id,
+        label: item.label,
+        sublabel: item.description,
+        path: item.path,
+      });
+      if (item.subTabs) {
+        for (const tab of item.subTabs) {
+          list.push({
+            id: `${item.id}-${tab.id}`,
+            label: `${item.label} → ${tab.label}`,
+            sublabel: item.description,
+            path: tab.path,
+          });
+        }
+      }
+    }
+    list.push(
+      {
+        id: 'account-profile',
+        label: 'Meus Dados',
+        sublabel: 'Informações cadastrais e nome social',
+        path: accountPaths.profile,
+      },
+      {
+        id: 'account-settings',
+        label: 'Configurações & Aparência',
+        sublabel: 'Tema Claro/Escuro e escala tipográfica',
+        path: accountPaths.settings,
+      }
+    );
+    return list;
+  }, [menuItems, accountPaths]);
+
+  const studentPersons = useMemo(
+    () => db.persons.filter((p) => p.id.startsWith('per-est-')),
+    [db.persons]
+  );
+
+  // Dados do aluno selecionado no Quick SlideOverDrawer
+  const quickDrawerData = useMemo(() => {
+    if (!quickDrawerStudentId) return null;
+    const person = db.persons.find((p) => p.id === quickDrawerStudentId);
+    if (!person) return null;
+    const enrollment = db.enrollments.find((e) => e.studentPersonId === person.id);
+    const classRoom = db.classRooms.find((c) => c.id === enrollment?.classRoomId);
+    const attendancePct = getStudentAttendancePercentage(person.id);
+    const grades = db.grades.filter((g) => g.studentPersonId === person.id);
+    const enemAvg = calculateSimpleEnemAverage(grades);
+    return {
+      person,
+      enrollment,
+      classRoom,
+      attendancePct,
+      grades,
+      enemAvg,
+    };
+  }, [
+    quickDrawerStudentId,
+    db.persons,
+    db.enrollments,
+    db.classRooms,
+    db.grades,
+    getStudentAttendancePercentage,
+  ]);
+
+  // Contexto do aluno ativo para o Perfil Responsável (Requisito 6)
+  const guardianStudentContext = useMemo(() => {
+    if (role !== 'guardian' || !selectedStudentForGuardian) return null;
+    const enrollment = db.enrollments.find(
+      (e) => e.studentPersonId === selectedStudentForGuardian.id && e.status === 'ativa'
+    );
+    const classRoom = db.classRooms.find((c) => c.id === enrollment?.classRoomId);
+    const responsibility = db.responsibilities.find(
+      (r) =>
+        r.guardianPersonId === currentPerson.id &&
+        r.studentPersonId === selectedStudentForGuardian.id
+    );
+    return {
+      student: selectedStudentForGuardian,
+      displayName: getDisplayName(selectedStudentForGuardian),
+      enrollmentCode: enrollment?.enrollmentCode ?? 'BS-2026',
+      classRoomName: classRoom?.name ?? 'Turma Esperança',
+      shift: classRoom?.shift ?? 'Noite',
+      roomLabel: classRoom?.roomLabel ?? 'Sala 1',
+      relationship: responsibility?.relationship ?? 'Responsável',
+    };
+  }, [
+    role,
+    selectedStudentForGuardian,
+    db.enrollments,
+    db.classRooms,
+    db.responsibilities,
+    currentPerson.id,
+  ]);
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      {/* Link de salto para acessibilidade via teclado */}
+    <div className="flex min-h-screen flex-col bg-paper text-ink lg:flex-row">
       <a
         href="#conteudo-principal-app"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-xl focus:bg-primary-700 focus:px-4 focus:py-2.5 focus:text-white focus:font-bold"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-cta focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-cta-fg"
       >
-        Ir direto para o conteúdo principal
+        Ir para o conteúdo principal
       </a>
 
-      {/* SIDEBAR DESKTOP (Vertical Retrátil fixa na altura da tela) */}
+      {/* =====================================================================
+          SIDEBAR DESKTOP (Âncora Espacial Imóvel + Indicador Deslizante layoutId)
+         ===================================================================== */}
       <aside
-        aria-label="Menu principal de navegação"
+        aria-label="Navegação principal"
         className={cn(
-          'hidden lg:flex lg:flex-col lg:shrink-0 lg:sticky lg:top-0 lg:h-screen border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 transition-all duration-200',
-          isSidebarCollapsed ? 'lg:w-24' : 'lg:w-72'
+          'no-print hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:flex-col border-r border-line bg-surface',
+          isSidebarCollapsed ? 'lg:w-16' : 'lg:w-60'
         )}
       >
-        {/* Identidade Institucional */}
+        {/* Topo: Logo Bonsucesso+ / Cursinho Comunitário */}
         <div
           className={cn(
-            'flex border-b border-slate-200 px-4 py-4 dark:border-slate-800',
-            isSidebarCollapsed
-              ? 'flex-col items-center gap-3 px-2'
-              : 'items-center justify-between gap-2'
+            'flex h-14 items-center border-b border-line px-4',
+            isSidebarCollapsed ? 'justify-center px-2' : 'justify-between gap-2'
           )}
         >
           <Link
             to={getDefaultRouteForRole(role)}
-            className={cn(
-              'flex items-center gap-3',
-              isSidebarCollapsed ? 'justify-center' : 'min-w-0'
-            )}
-            title="IntegraCurso — Educação que transforma"
+            title="Bonsucesso+ — Cursinho Comunitário"
+            className="min-w-0"
           >
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-700 text-white shadow-xs dark:bg-primary-600"
-              aria-hidden="true"
-            >
-              <BookHeart className="h-6 w-6" />
-            </div>
-            {!isSidebarCollapsed && (
-              <div className="truncate">
-                <span className="block text-lg font-extrabold tracking-tight text-primary-900 dark:text-primary-200">
-                  IntegraCurso
-                </span>
-                <span className="block text-xs font-medium text-slate-600 dark:text-slate-400">
-                  Educação que transforma
-                </span>
-              </div>
-            )}
+            <BrandLockup
+              collapsed={isSidebarCollapsed}
+              subtitle="Cursinho Comunitário"
+            />
           </Link>
 
-          <button
-            type="button"
-            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-            aria-expanded={!isSidebarCollapsed}
-            aria-label={isSidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            title={isSidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            {isSidebarCollapsed ? (
-              <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
-            ) : (
-              <PanelLeftClose className="h-5 w-5" aria-hidden="true" />
-            )}
-            <span className="sr-only">
-              {isSidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            </span>
-          </button>
-        </div>
-
-        {/* Cartão de Identificação do Usuário Logado */}
-        <div className={cn('border-b border-slate-200 dark:border-slate-800', isSidebarCollapsed ? 'p-2' : 'p-4')}>
-          <div
-            className={cn(
-              'rounded-xl bg-slate-100/80 dark:bg-slate-800/70',
-              isSidebarCollapsed ? 'px-1.5 py-2.5 text-center' : 'p-3'
-            )}
-            title={`${displayName} — ${getRoleDisplayLabel(role)}`}
-          >
-            <p className="text-xs font-bold uppercase tracking-wider text-primary-800 dark:text-primary-300 truncate">
-              {isSidebarCollapsed
-                ? role === 'student'
-                  ? 'ALUNO'
-                  : role === 'guardian'
-                  ? 'RESP.'
-                  : role === 'teacher'
-                  ? 'PROF.'
-                  : 'COORD.'
-                : getRoleDisplayLabel(role)}
-            </p>
-            {!isSidebarCollapsed && (
-              <>
-                <p className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white truncate">
-                  {displayName}
-                </p>
-                <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
-                  {currentPerson.email}
-                </p>
-              </>
-            )}
-          </div>
-
-          {/* Se for Responsável com múltiplos filhos vinculados, permite alternar facilmente */}
-          {role === 'guardian' && linkedStudentsForGuardian.length > 1 && !isSidebarCollapsed && (
-            <div className="mt-3">
-              <label
-                htmlFor="sidebar-guardian-student-select"
-                className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
-              >
-                Acompanhando estudante:
-              </label>
-              <select
-                id="sidebar-guardian-student-select"
-                value={selectedStudentForGuardian?.id ?? ''}
-                onChange={(e) => {
-                  setSelectedStudentIdForGuardian(e.target.value);
-                  showToast({
-                    variant: 'info',
-                    title: 'Estudante selecionado alterado',
-                    description: 'Exibindo dados atualizados.',
-                  });
-                }}
-                className="w-full min-h-[44px] rounded-xl border-2 border-primary-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-900 dark:border-primary-700 dark:bg-slate-900 dark:text-white"
-              >
-                {linkedStudentsForGuardian.map((student) => (
-                  <option key={student.id} value={student.id}>
-                    {getDisplayName(student)}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {!isSidebarCollapsed && (
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(true)}
+              aria-label="Recolher menu lateral"
+              title="Recolher menu lateral"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted transition-all duration-150 ease-out hover:bg-subtle hover:text-ink active:scale-95"
+            >
+              <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+            </button>
           )}
         </div>
 
-        {/* Lista de Navegação por Perfil */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1.5">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.id}
-              to={item.path}
-              end={item.path === getDefaultRouteForRole(role)}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-h-[48px] items-center gap-3 rounded-xl px-3.5 py-2.5 text-base font-semibold transition-colors',
-                  isActive
-                    ? 'bg-primary-700 text-white shadow-xs dark:bg-primary-600'
-                    : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800',
-                  isSidebarCollapsed && 'justify-center px-2'
-                )
-              }
-              title={item.label}
+        {isSidebarCollapsed && (
+          <div className="flex justify-center border-b border-line py-2">
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(false)}
+              aria-label="Expandir menu lateral"
+              title="Expandir menu lateral"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-muted transition-all duration-150 ease-out hover:bg-subtle hover:text-ink active:scale-95"
             >
-              <span className="shrink-0" aria-hidden="true">
-                {item.icon}
+              <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
+        {/* Meio: Módulos com Indicador Deslizante (layoutId="sidebar-active-indicator") */}
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <nav aria-label="Módulos do perfil" className="space-y-1">
+            {menuItems.map((item) => {
+              const isItemActive = activeMenuItem?.id === item.id;
+              return (
+                <Link
+                  key={item.id}
+                  to={item.path}
+                  aria-current={isItemActive ? 'page' : undefined}
+                  title={item.label}
+                  className={cn(
+                    'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-150 active:scale-[0.99]',
+                    isItemActive
+                      ? 'font-semibold text-ink'
+                      : 'font-medium text-ink-muted hover:bg-subtle hover:text-ink',
+                    isSidebarCollapsed && 'justify-center px-0'
+                  )}
+                >
+                  {isItemActive && (
+                    <>
+                      <motion.span
+                        layoutId="sidebar-active-surface"
+                        transition={SPRINGS.indicator}
+                        className="absolute inset-0 rounded-md bg-track"
+                        aria-hidden="true"
+                      />
+                      <motion.span
+                        layoutId="sidebar-active-indicator"
+                        transition={SPRINGS.indicator}
+                        className={cn(
+                          'absolute inset-y-1.5 left-0 z-10 w-[3px] rounded-r',
+                          item.accentBarClass ?? 'bg-ink'
+                        )}
+                        aria-hidden="true"
+                      />
+                    </>
+                  )}
+                  <span
+                    className={cn(
+                      'relative z-10 shrink-0',
+                      isItemActive ? 'text-ink' : 'text-ink-muted'
+                    )}
+                    aria-hidden="true"
+                  >
+                    {item.icon}
+                  </span>
+                  {!isSidebarCollapsed && (
+                    <span className="relative z-10 flex-1 truncate">{item.label}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Rodapé: Bloco Discreto de Perfil + Popover Animado */}
+        <div className="relative shrink-0 border-t border-line p-3">
+          <AnimatePresence>
+            {isProfilePopoverOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsProfilePopoverOpen(false)}
+                  aria-hidden="true"
+                />
+                <motion.div
+                  key="profile-popover"
+                  variants={VARIANTS.popover}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  role="menu"
+                  aria-label="Opções da conta e ferramentas"
+                  className="absolute bottom-16 left-3 right-3 z-40 rounded-lg border border-line bg-surface p-1.5 shadow-sm"
+                >
+                  <Link
+                    to={accountPaths.profile}
+                    role="menuitem"
+                    onClick={() => setIsProfilePopoverOpen(false)}
+                    className="flex items-center gap-2.5 rounded-md px-3 py-2 text-xs font-medium text-ink transition-colors duration-150 hover:bg-subtle"
+                  >
+                    <UserCircle className="h-4 w-4 text-ink-muted" aria-hidden="true" />
+                    <span>Meus Dados</span>
+                  </Link>
+                  <Link
+                    to={accountPaths.settings}
+                    role="menuitem"
+                    onClick={() => setIsProfilePopoverOpen(false)}
+                    className="flex items-center gap-2.5 rounded-md px-3 py-2 text-xs font-medium text-ink transition-colors duration-150 hover:bg-subtle"
+                  >
+                    <Settings className="h-4 w-4 text-ink-muted" aria-hidden="true" />
+                    <span>Configurações &amp; Aparência</span>
+                  </Link>
+
+                  <div className="my-1 border-t border-line" />
+
+                  <div className="px-2 py-1.5">
+                    <span className="mb-1.5 block text-[11px] font-medium text-ink-muted">
+                      Aparência
+                    </span>
+                    <div
+                      role="group"
+                      aria-label="Alternar tema"
+                      className="grid grid-cols-3 gap-0.5 rounded-md bg-track p-0.5"
+                    >
+                      {(
+                        [
+                          { id: 'light', label: 'Claro', icon: <Sun className="h-3.5 w-3.5" /> },
+                          { id: 'dark', label: 'Escuro', icon: <Moon className="h-3.5 w-3.5" /> },
+                          { id: 'system', label: 'Auto', icon: <Monitor className="h-3.5 w-3.5" /> },
+                        ] as const
+                      ).map((opt) => {
+                        const isActive = theme === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setTheme(opt.id)}
+                            aria-pressed={isActive}
+                            className={cn(
+                              'relative flex h-7 items-center justify-center gap-1 rounded text-[11px] transition-colors duration-150',
+                              isActive
+                                ? 'bg-surface font-semibold text-ink shadow-xs'
+                                : 'font-medium text-ink-muted hover:text-ink'
+                            )}
+                          >
+                            {opt.icon}
+                            <span>{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="my-1 border-t border-line" />
+
+                  <Link
+                    to="/design-system"
+                    role="menuitem"
+                    onClick={() => setIsProfilePopoverOpen(false)}
+                    className="flex items-center gap-2.5 rounded-md px-3 py-2 text-xs font-medium text-ink-muted transition-colors duration-150 hover:bg-subtle hover:text-ink"
+                  >
+                    <Palette className="h-4 w-4" aria-hidden="true" />
+                    <span>Catálogo Design System</span>
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsProfilePopoverOpen(false);
+                      setIsResetDialogOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors duration-150 hover:bg-subtle hover:text-ink"
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    <span>Restaurar Dados Demo</span>
+                  </button>
+
+                  <div className="my-1 border-t border-line" />
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsProfilePopoverOpen(false);
+                      setIsLogoutDialogOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-medium text-critical transition-colors duration-150 hover:bg-critical-bg"
+                  >
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                    <span>Sair da Conta</span>
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          <div
+            className={cn(
+              'flex items-center gap-2.5 rounded-md p-1.5 transition-colors duration-150 hover:bg-subtle',
+              isSidebarCollapsed ? 'justify-center' : 'justify-between'
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => setIsProfilePopoverOpen((v) => !v)}
+              aria-expanded={isProfilePopoverOpen}
+              aria-label="Abrir menu do perfil"
+              title="Abrir menu do perfil"
+              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+            >
+              <span
+                className="font-mono flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-track text-xs font-semibold text-ink"
+                aria-hidden="true"
+              >
+                {getInitials(displayName)}
               </span>
-              {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
-              {isSidebarCollapsed && <span className="sr-only">{item.label}</span>}
-            </NavLink>
-          ))}
-        </nav>
+              {!isSidebarCollapsed && (
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-semibold text-ink">
+                    {displayName}
+                  </span>
+                  <span className="block truncate text-[11px] text-ink-muted">
+                    {getRoleDisplayLabel(role)}
+                  </span>
+                </span>
+              )}
+            </button>
 
-        {/* Rodapé da Sidebar: Resetar Demo + Sair (sempre visível na base da viewport) */}
-        <div className="border-t border-slate-200 p-3 space-y-2 dark:border-slate-800 shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsResetDialogOpen(true)}
-            aria-label="Resetar dados de demonstração"
-            title="Resetar dados de demonstração"
-            className={cn(
-              'flex w-full min-h-[44px] items-center gap-2.5 rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors',
-              isSidebarCollapsed && 'justify-center px-2'
+            {!isSidebarCollapsed && (
+              <div className="flex shrink-0 items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => setIsProfilePopoverOpen((v) => !v)}
+                  title="Opções e ferramentas"
+                  aria-label="Opções e ferramentas"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded text-ink-muted transition-all duration-150 ease-out hover:bg-track hover:text-ink active:scale-95"
+                >
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLogoutDialogOpen(true)}
+                  title="Sair da conta"
+                  aria-label="Sair da conta"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded text-ink-muted transition-all duration-150 ease-out hover:bg-critical-bg hover:text-critical active:scale-95"
+                >
+                  <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </div>
             )}
-          >
-            <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {!isSidebarCollapsed && <span>Resetar dados demo</span>}
-            {isSidebarCollapsed && <span className="sr-only">Resetar dados demo</span>}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsLogoutDialogOpen(true)}
-            aria-label="Sair da conta"
-            title="Sair da conta"
-            className={cn(
-              'flex w-full min-h-[44px] items-center gap-2.5 rounded-xl border border-danger-500/40 bg-danger-50 px-3.5 py-2 text-base font-bold text-danger-800 hover:bg-danger-100 dark:border-red-800 dark:bg-danger-900/30 dark:text-red-200 dark:hover:bg-danger-900/50 transition-colors',
-              isSidebarCollapsed && 'justify-center px-2'
-            )}
-          >
-            <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
-            {!isSidebarCollapsed && <span>Sair da Conta</span>}
-            {isSidebarCollapsed && <span className="sr-only">Sair da Conta</span>}
-          </button>
+          </div>
         </div>
       </aside>
 
-      {/* CONTEÚDO PRINCIPAL + TOPBAR */}
-      <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
-        {/* TOPBAR */}
-        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-xs dark:border-slate-800 dark:bg-slate-900/95">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            {/* Esquerda Mobile: Botão Menu Hambúrguer + Logo */}
-            <div className="flex items-center gap-3">
+      {/* =====================================================================
+          COLUNA PRINCIPAL: TOPBAR + BARRA DE CONTEXTO (RESPONSÁVEL) + MAIN
+         ===================================================================== */}
+      <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
+        {/* TOPBAR (h-14) */}
+        <header className="no-print sticky top-0 z-30 border-b border-line bg-surface">
+          <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
+            {/* Esquerda: Menu Mobile + Breadcrumb */}
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className="lg:hidden inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                aria-label="Abrir menu lateral"
+                title="Abrir menu lateral"
+                className="inline-flex h-10 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all duration-150 ease-out hover:bg-subtle active:scale-[0.98] lg:hidden"
               >
-                <Menu className="h-5 w-5" aria-hidden="true" />
+                <Menu className="h-4 w-4" aria-hidden="true" />
                 <span>Menu</span>
               </button>
 
-              {/* Breadcrumbs — Orientação Espacial (Heurística de Nielsen) */}
-              <nav aria-label="Você está em (Breadcrumb)" className="flex items-center">
-                <ol className="flex flex-wrap items-center gap-1.5 text-sm">
-                  <li>
+              <nav aria-label="Breadcrumb" className="min-w-0">
+                <ol className="flex items-center gap-1.5 text-xs text-ink-muted">
+                  <li className="hidden sm:inline truncate">
                     <Link
                       to={getDefaultRouteForRole(role)}
-                      className="font-semibold text-slate-600 hover:text-primary-800 dark:text-slate-300 dark:hover:text-primary-300"
+                      className="transition-colors duration-150 hover:text-ink"
                     >
                       {getRoleDisplayLabel(role)}
                     </Link>
                   </li>
-                  <li aria-hidden="true">
-                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                  <li aria-hidden="true" className="hidden sm:inline">
+                    <ChevronRight className="h-3.5 w-3.5 text-ink-muted/60" />
                   </li>
-                  <li aria-current="page" className="font-extrabold text-slate-900 dark:text-white">
-                    {activeMenuItem?.label ?? 'Painel'}
+                  <li className="truncate">
+                    <Link
+                      to={activeMenuItem?.path ?? getDefaultRouteForRole(role)}
+                      className={cn(
+                        'transition-colors duration-150',
+                        activeSubTab
+                          ? 'text-ink-muted hover:text-ink'
+                          : 'font-medium text-ink'
+                      )}
+                    >
+                      {activeMenuItem?.label ?? 'Painel'}
+                    </Link>
                   </li>
+                  {activeSubTab && (
+                    <>
+                      <li aria-hidden="true">
+                        <ChevronRight className="h-3.5 w-3.5 text-ink-muted/60" />
+                      </li>
+                      <li aria-current="page" className="truncate font-medium text-ink">
+                        {activeSubTab.label}
+                      </li>
+                    </>
+                  )}
                 </ol>
               </nav>
             </div>
 
-            {/* Direita Topbar: Seletor Rápido de Troca de Perfil (Protótipo) + Acessibilidade + Sair Mobile */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Seletor Rápido: Trocar Perfil (Modo Protótipo) */}
-              <div className="flex items-center gap-1.5 rounded-xl border border-secondary-300 bg-secondary-50/80 px-2.5 py-1 dark:border-secondary-700 dark:bg-secondary-950/60">
-                <Sparkles
-                  className="h-4 w-4 text-secondary-700 dark:text-secondary-300 shrink-0"
-                  aria-hidden="true"
-                />
-                <label
-                  htmlFor="prototype-role-switcher"
-                  className="text-xs font-bold text-secondary-900 dark:text-secondary-200 whitespace-nowrap"
-                >
-                  Trocar perfil (Protótipo):
-                </label>
+            {/* Direita: Gatilho Command Palette (Ctrl+K) + Seletor de Perfil */}
+            <div className="flex items-center gap-2.5">
+              {/* Gatilho Desktop/Tablet Command Palette */}
+              <button
+                type="button"
+                onClick={() => setIsCommandPaletteOpen(true)}
+                aria-label="Abrir busca rápida e comandos (Ctrl+K)"
+                title="Busca rápida e comandos (Ctrl+K / ⌘K)"
+                className="hidden sm:inline-flex h-9 w-52 items-center justify-between gap-2 rounded-md border border-line bg-search px-3 text-xs text-ink-muted transition-colors duration-150 hover:border-ink/40 hover:text-ink xl:w-64"
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">Buscar aluno, turma...</span>
+                </span>
+                <kbd className="num shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-muted">
+                  Ctrl K
+                </kbd>
+              </button>
+
+              {/* Gatilho Mobile Command Palette (Alvo de toque 44px) */}
+              <button
+                type="button"
+                onClick={() => setIsCommandPaletteOpen(true)}
+                aria-label="Abrir busca rápida (Ctrl+K)"
+                title="Abrir busca rápida"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-line bg-search text-ink transition-colors duration-150 hover:bg-subtle sm:hidden"
+              >
+                <Search className="h-4 w-4" aria-hidden="true" />
+              </button>
+
+              {/* Seletor de Perfil: Segmented Control com Pílula Deslizante (layoutId) */}
+              <div
+                role="group"
+                aria-label="Alternar perfil"
+                className="flex items-center rounded-md bg-track p-0.5"
+              >
+                <div className="hidden md:flex items-center gap-0.5">
+                  {PROTOTYPE_ROLE_SWITCHER.map((opt) => {
+                    const isCurrent = role === opt.role;
+                    return (
+                      <button
+                        key={opt.role}
+                        type="button"
+                        onClick={() => handlePrototypeRoleSwitch(opt.role)}
+                        aria-pressed={isCurrent}
+                        className={cn(
+                          'relative h-7 rounded px-2.5 text-xs transition-colors duration-150 active:scale-[0.98]',
+                          isCurrent
+                            ? 'font-semibold text-ink'
+                            : 'font-medium text-ink-muted hover:text-ink'
+                        )}
+                      >
+                        {isCurrent && (
+                          <motion.span
+                            layoutId="topbar-role-switcher-pill"
+                            transition={SPRINGS.indicator}
+                            className="absolute inset-0 rounded bg-surface shadow-xs"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="relative z-10">{opt.shortLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <select
-                  id="prototype-role-switcher"
+                  aria-label="Alternar perfil"
                   value={role}
                   onChange={(e) => handlePrototypeRoleSwitch(e.target.value as UserRole)}
-                  className="min-h-[36px] rounded-lg border border-secondary-300 bg-white px-2 py-1 text-xs font-bold text-slate-900 dark:border-secondary-700 dark:bg-slate-900 dark:text-white"
+                  className="h-8 rounded bg-surface px-2 text-xs font-medium text-ink md:hidden"
                 >
-                  {ROLE_OPTIONS_FOR_PROTOTYPE.map((opt) => (
+                  {PROTOTYPE_ROLE_SWITCHER.map((opt) => (
                     <option key={opt.role} value={opt.role}>
-                      {opt.label}
+                      {opt.shortLabel}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
           </div>
+
+          {/* TABS HORIZONTAIS COM SUBLINHADO DESLIZANTE (layoutId) */}
+          {activeMenuItem?.subTabs && activeMenuItem.subTabs.length > 0 && (
+            <div className="border-t border-line bg-surface px-4 sm:px-6">
+              <div
+                role="tablist"
+                aria-label={`Abas de ${activeMenuItem.label}`}
+                className="mx-auto flex max-w-7xl items-center gap-6 overflow-x-auto"
+              >
+                {activeMenuItem.subTabs.map((tab) => {
+                  const isTabActive = location.pathname === tab.path;
+                  return (
+                    <Link
+                      key={tab.id}
+                      to={tab.path}
+                      role="tab"
+                      aria-selected={isTabActive}
+                      className={cn(
+                        'relative inline-flex h-10 shrink-0 items-center text-sm transition-colors duration-150',
+                        isTabActive
+                          ? 'font-semibold text-ink'
+                          : 'font-medium text-ink-muted hover:text-ink'
+                      )}
+                    >
+                      <span>{tab.label}</span>
+                      {isTabActive && (
+                        <motion.span
+                          layoutId={`topbar-subtab-indicator-${activeMenuItem.id}`}
+                          transition={SPRINGS.indicator}
+                          className="absolute inset-x-0 bottom-0 h-0.5 bg-ink"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* =================================================================
+              6. BARRA FIXA DE PROTEÇÃO DE CONTEXTO PARA O PERFIL RESPONSÁVEL
+             ================================================================= */}
+          {role === 'guardian' && guardianStudentContext && (
+            <div
+              role="region"
+              aria-label="Contexto do estudante acompanhado"
+              className="border-t border-line bg-subtle px-4 py-2 sm:px-6"
+            >
+              <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-progress-bg text-progress">
+                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-ink-muted">Acompanhando:</span>
+                    <strong className="font-semibold text-ink">
+                      {guardianStudentContext.displayName}
+                    </strong>
+                    <span className="text-ink-muted">•</span>
+                    <span className="font-medium text-ink">
+                      {guardianStudentContext.classRoomName}
+                    </span>
+                    <span className="hidden sm:inline text-ink-muted">
+                      ({guardianStudentContext.shift} • {guardianStudentContext.roomLabel})
+                    </span>
+                  </div>
+                </div>
+
+                {linkedStudentsForGuardian.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="guardian-context-student-select"
+                      className="text-xs font-medium text-ink-muted whitespace-nowrap"
+                    >
+                      Alternar aluno:
+                    </label>
+                    <select
+                      id="guardian-context-student-select"
+                      value={selectedStudentForGuardian?.id ?? ''}
+                      onChange={(e) => setSelectedStudentIdForGuardian(e.target.value)}
+                      className="h-8 rounded-md border border-line bg-surface px-2.5 text-xs font-semibold text-ink transition-colors duration-150 focus:border-ink"
+                    >
+                      {linkedStudentsForGuardian.map((student) => {
+                        const enr = db.enrollments.find(
+                          (item) => item.studentPersonId === student.id
+                        );
+                        const cls = db.classRooms.find((c) => c.id === enr?.classRoomId);
+                        return (
+                          <option key={student.id} value={student.id}>
+                            {getDisplayName(student)} — {cls?.name ?? 'Turma Esperança'}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </header>
 
-        {/* ÁREA DE PÁGINA INTERNA */}
+        {/* CONTEÚDO PRINCIPAL COM TRANSIÇÃO ULTRA-RÁPIDA (160ms/180ms) + BrandLoader */}
         <main
           id="conteudo-principal-app"
-          className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8"
+          className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8"
         >
-          {children}
+          {isSwitchingRole ? (
+            <BrandLoader variant="fullscreen" label="Alternando perfil..." />
+          ) : (
+            <Suspense fallback={<BrandLoader variant="fullscreen" label="Carregando dados..." />}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={`${location.pathname}-${
+                    role === 'guardian' ? selectedStudentForGuardian?.id ?? '' : ''
+                  }`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: DURATIONS.overlay, ease: EASINGS.snappy },
+                  }}
+                  exit={{
+                    opacity: 0,
+                    transition: { duration: DURATIONS.pageExit, ease: EASINGS.snappy },
+                  }}
+                >
+                  {children}
+                </motion.div>
+              </AnimatePresence>
+            </Suspense>
+          )}
         </main>
       </div>
 
-      {/* DRAWER MOBILE (Menu Hambúrguer completo, fecha também com Esc) */}
-      {isMobileDrawerOpen && (
-        <div
-          className="fixed inset-0 z-50 lg:hidden flex bg-slate-950/70 backdrop-blur-xs"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Menu de navegação"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setIsMobileDrawerOpen(false);
-            }
-          }}
-        >
-          <div className="relative flex w-full max-w-xs flex-col bg-white dark:bg-slate-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-700 text-white">
-                  <BookHeart className="h-5 w-5" aria-hidden="true" />
+      {/* =====================================================================
+          1. COMMAND PALETTE GLOBAL (Ctrl+K / Cmd+K)
+         ===================================================================== */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        role={role}
+        navEntries={commandNavEntries}
+        students={studentPersons}
+        enrollments={db.enrollments}
+        classRooms={db.classRooms}
+        subjects={db.subjects}
+        linkedStudentsForGuardian={linkedStudentsForGuardian}
+        resolvedTheme={resolvedTheme}
+        onToggleTheme={toggleTheme}
+        onNavigate={(path) => navigate(path)}
+        onSelectStudent={(studentId) => {
+          setQuickDrawerTab('resumo');
+          setQuickDrawerStudentId(studentId);
+        }}
+        onSelectGuardianStudent={(studentId) => {
+          setSelectedStudentIdForGuardian(studentId);
+        }}
+      />
+
+      {/* =====================================================================
+          SLIDE-OVER DRAWER RÁPIDO DO ALUNO (Acionado pelo Command Palette)
+         ===================================================================== */}
+      <SlideOverDrawer
+        isOpen={Boolean(quickDrawerData)}
+        onClose={() => setQuickDrawerStudentId(null)}
+        eyebrow={
+          quickDrawerData?.enrollment
+            ? `Matrícula ${quickDrawerData.enrollment.enrollmentCode}`
+            : 'Ficha do Estudante'
+        }
+        title={quickDrawerData ? getDisplayName(quickDrawerData.person) : 'Estudante'}
+        subtitle={quickDrawerData?.classRoom?.name ?? 'Turma Esperança • Noite'}
+        headerBadge={
+          quickDrawerData ? (
+            <Badge
+              variant={quickDrawerData.attendancePct < 75 ? 'critical' : 'progress'}
+            >
+              Frequência {quickDrawerData.attendancePct}%
+            </Badge>
+          ) : undefined
+        }
+        tabs={
+          role === 'coordinator'
+            ? [
+                { id: 'resumo', label: 'Resumo Acadêmico' },
+                {
+                  id: 'notas',
+                  label: 'Simulados ENEM',
+                  badgeCount: quickDrawerData?.grades.length ?? 0,
+                },
+                { id: 'dados', label: 'Dados Pessoais' },
+              ]
+            : [
+                { id: 'resumo', label: 'Resumo Acadêmico' },
+                {
+                  id: 'notas',
+                  label: 'Simulados ENEM',
+                  badgeCount: quickDrawerData?.grades.length ?? 0,
+                },
+              ]
+        }
+        activeTabId={quickDrawerTab}
+        onTabChange={setQuickDrawerTab}
+        footer={
+          quickDrawerData ? (
+            <>
+              <Button variant="secondary" onClick={() => setQuickDrawerStudentId(null)}>
+                Fechar
+              </Button>
+              {role === 'coordinator' && (
+                <Button
+                  variant="primary"
+                  rightIcon={<ExternalLink className="h-4 w-4" />}
+                  onClick={() => {
+                    const id = quickDrawerData.person.id;
+                    setQuickDrawerStudentId(null);
+                    navigate(`/coordenacao/alunos?studentId=${id}`);
+                  }}
+                >
+                  Abrir Ficha Completa
+                </Button>
+              )}
+            </>
+          ) : undefined
+        }
+      >
+        {quickDrawerData && (
+          <div className="space-y-4">
+            {quickDrawerTab === 'resumo' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 rounded-md bg-subtle p-4">
+                  <div>
+                    <span className="eyebrow">Frequência Acumulada</span>
+                    <p className="num mt-1 text-2xl font-semibold text-ink">
+                      {quickDrawerData.attendancePct}%
+                    </p>
+                  </div>
+                  <div>
+                    <span className="eyebrow">Média Geral ENEM</span>
+                    <p className="num mt-1 text-2xl font-semibold text-ink">
+                      {quickDrawerData.enemAvg > 0
+                        ? formatEnemScore(quickDrawerData.enemAvg)
+                        : '—'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <span className="block text-base font-extrabold text-primary-900 dark:text-primary-200">
-                    IntegraCurso
+
+                <div className="divide-y divide-line text-xs">
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-ink-muted">Turma</span>
+                    <span className="font-medium text-ink">
+                      {quickDrawerData.classRoom?.name ?? 'Turma Esperança'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-ink-muted">E-mail</span>
+                    <span className="font-medium text-ink">
+                      {quickDrawerData.person.email}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-ink-muted">Telefone</span>
+                    <span className="num font-medium text-ink">
+                      {quickDrawerData.person.phone}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {quickDrawerTab === 'notas' && (
+              <div className="divide-y divide-line">
+                {quickDrawerData.grades.length > 0 ? (
+                  quickDrawerData.grades.map((grade) => {
+                    const assessment = db.assessments.find(
+                      (a) => a.id === grade.assessmentId
+                    );
+                    return (
+                      <div
+                        key={grade.id}
+                        className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-ink">
+                            {assessment?.title ?? 'Simulado ENEM'}
+                          </p>
+                          <p className="num text-xs text-ink-muted">
+                            {formatDateBR(grade.recordedAt)}
+                          </p>
+                        </div>
+                        <span className="num text-base font-semibold text-ink">
+                          {grade.score} pts
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="py-4 text-xs text-ink-muted">
+                    Nenhuma avaliação registrada até o momento.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {quickDrawerTab === 'dados' && role === 'coordinator' && (
+              <div className="divide-y divide-line text-xs">
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-ink-muted">Nome de Exibição / Social</span>
+                  <span className="font-semibold text-ink">
+                    {getDisplayName(quickDrawerData.person)}
                   </span>
-                  <span className="block text-xs text-slate-600 dark:text-slate-400">
-                    Educação que transforma
+                </div>
+                {hasSocialName(quickDrawerData.person) && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-ink-muted">Nome Civil (Registro)</span>
+                    <span className="text-ink-muted">
+                      {getLegalName(quickDrawerData.person)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-ink-muted">CPF</span>
+                  <span className="num font-medium text-ink">
+                    {quickDrawerData.person.cpf}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-ink-muted">Data de Nascimento</span>
+                  <span className="num font-medium text-ink">
+                    {formatDateBR(quickDrawerData.person.birthDate)}
                   </span>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setIsMobileDrawerOpen(false)}
-                className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-                <span>Fechar</span>
-              </button>
-            </div>
-
-            <div className="border-b border-slate-200 p-4 dark:border-slate-800">
-              <p className="text-xs font-bold uppercase text-primary-800 dark:text-primary-300">
-                {getRoleDisplayLabel(role)}
-              </p>
-              <p className="text-base font-extrabold text-slate-900 dark:text-white">
-                {displayName}
-              </p>
-
-              {role === 'guardian' && linkedStudentsForGuardian.length > 1 && (
-                <div className="mt-3">
-                  <label
-                    htmlFor="mobile-guardian-student-select"
-                    className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
-                  >
-                    Acompanhando estudante:
-                  </label>
-                  <select
-                    id="mobile-guardian-student-select"
-                    value={selectedStudentForGuardian?.id ?? ''}
-                    onChange={(e) => setSelectedStudentIdForGuardian(e.target.value)}
-                    className="w-full min-h-[44px] rounded-xl border-2 border-primary-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-900 dark:border-primary-700 dark:bg-slate-900 dark:text-white"
-                  >
-                    {linkedStudentsForGuardian.map((student) => (
-                      <option key={student.id} value={student.id}>
-                        {getDisplayName(student)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <nav className="flex-1 overflow-y-auto p-3 space-y-1.5">
-              {menuItems.map((item) => (
-                <NavLink
-                  key={item.id}
-                  to={item.path}
-                  end={item.path === getDefaultRouteForRole(role)}
-                  onClick={() => setIsMobileDrawerOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex min-h-[48px] items-center gap-3 rounded-xl px-3.5 py-2.5 text-base font-semibold transition-colors',
-                      isActive
-                        ? 'bg-primary-700 text-white'
-                        : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
-                    )
-                  }
-                >
-                  <span aria-hidden="true">{item.icon}</span>
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
-            </nav>
-
-            <div className="border-t border-slate-200 p-4 space-y-2 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileDrawerOpen(false);
-                  setIsResetDialogOpen(true);
-                }}
-                className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-              >
-                <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                <span>Resetar dados de demonstração</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileDrawerOpen(false);
-                  setIsLogoutDialogOpen(true);
-                }}
-                className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-danger-700 px-3 py-2 text-base font-bold text-white"
-              >
-                <LogOut className="h-5 w-5" aria-hidden="true" />
-                <span>Sair da Conta</span>
-              </button>
-            </div>
+            )}
           </div>
+        )}
+      </SlideOverDrawer>
 
-          <div
-            className="flex-1"
-            onClick={() => setIsMobileDrawerOpen(false)}
-            aria-hidden="true"
-          />
-        </div>
-      )}
-
-      {/* BARRA INFERIOR MOBILE (Atalhos principais do perfil — sempre com ícone + rótulo) */}
-      <nav
-        aria-label="Atalhos rápidos do perfil"
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-xs dark:border-slate-800 dark:bg-slate-900/95"
-      >
-        <div className="grid grid-cols-5 gap-1 px-2 py-1.5">
-          {mobileBottomItems.map((item) => (
-            <NavLink
-              key={item.id}
-              to={item.path}
-              end={item.path === getDefaultRouteForRole(role)}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-xs font-bold transition-colors',
-                  isActive
-                    ? 'bg-primary-50 text-primary-800 dark:bg-primary-950 dark:text-primary-200'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-                )
-              }
-            >
-              <span aria-hidden="true">{item.icon}</span>
-              <span className="truncate max-w-full">{item.shortMobileLabel}</span>
-            </NavLink>
-          ))}
-
-          <button
-            type="button"
-            onClick={() => setIsMobileDrawerOpen(true)}
-            className="flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+      {/* DRAWER MOBILE COM ANIMAÇÃO GPU-ONLY */}
+      <AnimatePresence>
+        {isMobileDrawerOpen && (
+          <motion.div
+            key="mobile-drawer-backdrop"
+            variants={VARIANTS.backdrop}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="no-print fixed inset-0 z-50 flex bg-backdrop backdrop-blur-[2px] lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu de navegação"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setIsMobileDrawerOpen(false);
+            }}
           >
-            <Users className="h-5 w-5" aria-hidden="true" />
-            <span>Mais</span>
-          </button>
+            <motion.div
+              key="mobile-drawer-panel"
+              variants={VARIANTS.mobileDrawerLeft}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="relative flex w-full max-w-xs flex-col border-r border-line bg-surface"
+            >
+              <div className="flex h-14 items-center justify-between border-b border-line px-4">
+                <BrandLockup subtitle="Cursinho Comunitário" />
+                <button
+                  type="button"
+                  onClick={() => setIsMobileDrawerOpen(false)}
+                  aria-label="Fechar menu"
+                  title="Fechar menu"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md text-ink-muted transition-all duration-150 ease-out hover:bg-subtle active:scale-95"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+
+              <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+                {menuItems.map((item) => {
+                  const isItemActive = activeMenuItem?.id === item.id;
+                  return (
+                    <Link
+                      key={item.id}
+                      to={item.path}
+                      onClick={() => setIsMobileDrawerOpen(false)}
+                      className={cn(
+                        'flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-150',
+                        isItemActive
+                          ? 'bg-track font-semibold text-ink'
+                          : 'font-medium text-ink-muted hover:bg-subtle hover:text-ink'
+                      )}
+                    >
+                      <span aria-hidden="true">{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+
+                <div className="my-2 border-t border-line pt-2 space-y-1">
+                  <Link
+                    to={accountPaths.profile}
+                    onClick={() => setIsMobileDrawerOpen(false)}
+                    className="flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 text-xs font-medium text-ink-muted transition-colors duration-150 hover:bg-subtle hover:text-ink"
+                  >
+                    <UserCircle className="h-4 w-4" aria-hidden="true" />
+                    <span>Meus Dados</span>
+                  </Link>
+                  <Link
+                    to={accountPaths.settings}
+                    onClick={() => setIsMobileDrawerOpen(false)}
+                    className="flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 text-xs font-medium text-ink-muted transition-colors duration-150 hover:bg-subtle hover:text-ink"
+                  >
+                    <Settings className="h-4 w-4" aria-hidden="true" />
+                    <span>Configurações &amp; Aparência</span>
+                  </Link>
+                  <Link
+                    to="/design-system"
+                    onClick={() => setIsMobileDrawerOpen(false)}
+                    className="flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 text-xs font-medium text-ink-muted transition-colors duration-150 hover:bg-subtle hover:text-ink"
+                  >
+                    <Palette className="h-4 w-4" aria-hidden="true" />
+                    <span>Catálogo Design System</span>
+                  </Link>
+                </div>
+              </nav>
+
+              <div className="flex items-center justify-between gap-2 border-t border-line p-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="font-mono flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-track text-xs font-semibold text-ink">
+                    {getInitials(displayName)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-ink">{displayName}</p>
+                    <p className="truncate text-[11px] text-ink-muted">{getRoleDisplayLabel(role)}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileDrawerOpen(false);
+                    setIsLogoutDialogOpen(true);
+                  }}
+                  aria-label="Sair da conta"
+                  title="Sair da conta"
+                  className="inline-flex h-10 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-critical transition-colors duration-150 hover:bg-critical-bg"
+                >
+                  <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Sair</span>
+                </button>
+              </div>
+            </motion.div>
+
+            <div
+              className="flex-1"
+              onClick={() => setIsMobileDrawerOpen(false)}
+              aria-hidden="true"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* =====================================================================
+          3. BOTTOM NAVIGATION BAR MOBILE (h-16, pb-safe, 4–5 itens principais,
+             alvos de toque >= 44px e indicador ativo na cor semântica)
+         ===================================================================== */}
+      <nav
+        aria-label="Navegação rápida mobile"
+        className="no-print fixed inset-x-0 bottom-0 z-30 h-16 border-t border-line bg-surface pb-safe lg:hidden"
+      >
+        <div
+          className={cn(
+            'grid h-full gap-1 px-2',
+            mobileBottomItems.length === 4 ? 'grid-cols-4' : 'grid-cols-5'
+          )}
+        >
+          {mobileBottomItems.map((item) => {
+            const isItemActive = activeMenuItem?.id === item.id;
+            return (
+              <Link
+                key={item.id}
+                to={item.path}
+                aria-current={isItemActive ? 'page' : undefined}
+                className={cn(
+                  'relative flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] transition-colors duration-150 active:scale-95',
+                  isItemActive
+                    ? 'font-semibold text-ink'
+                    : 'font-medium text-ink-muted hover:bg-subtle'
+                )}
+              >
+                {isItemActive && (
+                  <>
+                    <motion.span
+                      layoutId="mobile-bottom-active-pill"
+                      transition={SPRINGS.indicator}
+                      className="absolute inset-x-1 inset-y-1.5 rounded-md bg-track"
+                      aria-hidden="true"
+                    />
+                    <motion.span
+                      layoutId="mobile-bottom-semantic-bar"
+                      transition={SPRINGS.indicator}
+                      className={cn(
+                        'absolute inset-x-3 top-0 z-10 h-[3px] rounded-b',
+                        item.accentBarClass ?? 'bg-ink'
+                      )}
+                      aria-hidden="true"
+                    />
+                  </>
+                )}
+                <span className="relative z-10" aria-hidden="true">
+                  {item.icon}
+                </span>
+                <span className="relative z-10 max-w-full truncate">
+                  {item.shortMobileLabel}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </nav>
 
-      {/* ConfirmDialog para Sair da Conta */}
       <ConfirmDialog
         isOpen={isLogoutDialogOpen}
         onClose={() => setIsLogoutDialogOpen(false)}
         onConfirm={handleConfirmLogout}
-        title="Deseja sair da sua conta agora?"
-        description={`Você está conectado(a) como ${displayName} (${getRoleDisplayLabel(role)}).`}
-        confirmLabel="Sim, sair da conta"
-        cancelLabel="Continuar navegando"
+        title="Encerrar sessão?"
+        description={`Você está conectado(a) como ${displayName}.`}
+        confirmLabel="Sair"
+        cancelLabel="Cancelar"
       />
 
-      {/* ConfirmDialog para Resetar Dados de Demonstração */}
       <ConfirmDialog
         isOpen={isResetDialogOpen}
         onClose={() => setIsResetDialogOpen(false)}
         onConfirm={handleConfirmResetData}
         variant="danger"
-        title="Restaurar dados originais de demonstração?"
-        description="Todas as chamadas, notas, matrículas ou itens de copa alterados durante os seus testes voltarão ao estado inicial do Cursinho Comunitário Bonsucesso."
-        consequenceNote="Essa ação limpa o armazenamento local (localStorage) do protótipo para você recomeçar os testes do zero."
-        confirmLabel="Sim, resetar dados"
+        title="Restaurar dados de demonstração?"
+        description="Todos os registros alterados voltarão ao estado inicial do Cursinho Bonsucesso."
+        confirmLabel="Restaurar"
         cancelLabel="Cancelar"
       />
     </div>

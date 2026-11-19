@@ -1,4 +1,11 @@
 import { Attendance, AttendanceStatus, Grade, Person, UserRole } from '../types';
+import {
+  getDisplayName as getPersonDisplayName,
+  getLegalName,
+  hasSocialName,
+} from '../lib/person';
+
+export { getLegalName, hasSocialName };
 
 /**
  * Limiar oficial de frequência do cursinho comunitário (75%)
@@ -39,10 +46,7 @@ export function calculateFiveAreasAverage(areaScores: NonNullable<Grade['areaSco
  * Retorna o nome de exibição preferencial de uma Person (respeitando Nome Social quando informado).
  */
 export function getDisplayName(person?: Person | null): string {
-  if (!person) return 'Usuário';
-  return person.socialName && person.socialName.trim().length > 0
-    ? person.socialName
-    : person.fullName;
+  return getPersonDisplayName(person);
 }
 
 /**

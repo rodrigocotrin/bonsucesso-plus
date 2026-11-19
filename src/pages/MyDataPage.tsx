@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Calendar,
-  CheckCircle2,
   Mail,
   Phone,
   Save,
   ShieldCheck,
-  UserCircle,
 } from 'lucide-react';
 import {
   Badge,
@@ -56,71 +53,39 @@ export const MyDataPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="primary" icon={<UserCircle className="h-4 w-4" />}>
-            Meus Dados Cadastrais
-          </Badge>
-          <Badge variant="neutral">{getRoleDisplayLabel(currentAccount.role)}</Badge>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Meus Dados Pessoais
-        </h1>
-        <p className="text-base text-slate-600 dark:text-slate-300">
-          Confira suas informações cadastradas no Cursinho Comunitário Bonsucesso e mantenha seu
-          telefone e nome social sempre atualizados.
-        </p>
-      </header>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Meus Dados</h1>
+        <Badge variant="neutral">{getRoleDisplayLabel(currentAccount.role)}</Badge>
+      </div>
 
-      {/* Identificação Cadastral (Somente Leitura para campos oficiais) */}
-      <Card
-        as="section"
-        title="Identificação Oficial"
-        subtitle="Para corrigir CPF, RG ou data de nascimento, procure a secretaria do cursinho."
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Nome Completo
-            </span>
-            <p className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">
-              {currentPerson.fullName}
-            </p>
+      {/* Identificação Cadastral (Sem sub-caixas com bordas — Regra 3) */}
+      <Card as="section" title="Identificação Oficial">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-ink-muted">Nome Completo</dt>
+            <dd className="mt-1 text-sm font-medium text-ink">{currentPerson.fullName}</dd>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Como você aparece no portal
-            </span>
-            <p className="mt-1 text-base font-extrabold text-primary-800 dark:text-primary-300">
-              {getDisplayName(currentPerson)}
-            </p>
+          <div>
+            <dt className="text-xs text-ink-muted">Nome de Exibição</dt>
+            <dd className="mt-1 text-sm font-medium text-ink">{getDisplayName(currentPerson)}</dd>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              CPF e RG
-            </span>
-            <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
-              CPF: {currentPerson.cpf} • RG: {currentPerson.rg}
-            </p>
+          <div>
+            <dt className="text-xs text-ink-muted">CPF e RG</dt>
+            <dd className="font-mono mt-1 text-sm font-medium text-ink tabular-nums">
+              {currentPerson.cpf} • {currentPerson.rg}
+            </dd>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-            <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Data de Nascimento e Situação</span>
-            </span>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <span className="text-base font-bold text-slate-900 dark:text-white">
-                {formatDateBR(currentPerson.birthDate)}
-              </span>
-              <Badge variant="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
-                Cadastro Ativo
-              </Badge>
-            </div>
+          <div>
+            <dt className="text-xs text-ink-muted">Data de Nascimento</dt>
+            <dd className="mt-1 flex items-center gap-2 text-sm font-medium text-ink">
+              <span className="font-mono tabular-nums">{formatDateBR(currentPerson.birthDate)}</span>
+              <Badge variant="progress">Ativo</Badge>
+            </dd>
           </div>
-        </div>
+        </dl>
       </Card>
 
       {/* Edição Simples de Contato e Nome Social */}
@@ -179,13 +144,13 @@ export const MyDataPage: React.FC = () => {
             {linkedStudentsForGuardian.map((student) => (
               <div
                 key={student.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
               >
                 <div>
-                  <p className="text-base font-extrabold text-slate-900 dark:text-white">
+                  <p className="text-base font-extrabold text-slate-900">
                     {getDisplayName(student)}
                   </p>
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                  <p className="text-sm text-slate-600">
                     CPF: {student.cpf} • Telefone: {student.phone}
                   </p>
                 </div>

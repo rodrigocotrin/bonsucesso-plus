@@ -1,7 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  BookOpen,
-  Calendar,
   FilePenLine,
   Mail,
   Phone,
@@ -256,50 +254,34 @@ export const CoordinatorTeachersPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<BookOpen className="h-4 w-4" />}>
-            Corpo Docente Comunitário (UC07, UC08)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Gestão de Professores Voluntários
-          </h1>
-          <p className="mt-1 max-w-3xl text-base text-slate-600 dark:text-slate-300">
-            Cadastre e acompanhe os educadores voluntários do cursinho. Inativar um(a) professor(a)
-            preserva todas as aulas e chamadas já registradas no diário.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Professores Voluntários</h1>
 
         <Button
           variant="primary"
-          size="lg"
-          leftIcon={<UserPlus className="h-5 w-5" />}
+          leftIcon={<UserPlus className="h-4 w-4" />}
           onClick={handleOpenCreateModal}
         >
-          Cadastrar Professor(a)
+          Novo Professor
         </Button>
       </div>
 
       {/* Barra de Busca e Filtros */}
-      <Card
-        as="section"
-        title="Buscar e Filtrar Corpo Docente"
-        subtitle="Localize rapidamente por nome, e-mail, disciplina do ENEM ou status."
-      >
+      <Card>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12 items-end">
           <div className="md:col-span-6">
             <SearchBar
-              label="Buscar por nome, nome social, e-mail ou disciplina"
+              label="Pesquisar"
               value={searchQuery}
               onValueChange={setSearchQuery}
-              placeholder="Ex: Carlos, Beatriz, Matemática, Redação..."
+              placeholder="Nome, e-mail ou disciplina..."
             />
           </div>
 
           <div className="md:col-span-3">
             <Select
-              label="Filtrar por Disciplina"
+              label="Disciplina"
               value={filterSubjectId}
               onChange={(e) => setFilterSubjectId(e.target.value)}
               options={[
@@ -311,22 +293,22 @@ export const CoordinatorTeachersPage: React.FC = () => {
 
           <div className="md:col-span-3">
             <Select
-              label="Status do Voluntário"
+              label="Situação"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               options={[
-                { value: 'all', label: 'Todos (Ativos e Inativos)' },
-                { value: 'active', label: 'Somente Ativos' },
-                { value: 'inactive', label: 'Somente Inativos' },
+                { value: 'all', label: 'Todos' },
+                { value: 'active', label: 'Ativos' },
+                { value: 'inactive', label: 'Inativos' },
               ]}
             />
           </div>
         </div>
       </Card>
 
-      {/* Grade de Cards de Professores */}
+      {/* Grade de Cards Limpos de Professores (Sem box-ception e sem múltiplos botões pretos/vermelhos) */}
       {filteredTeachers.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredTeachers.map((item) => {
             const displayName = getDisplayName(item.person);
             const isActive = item.person.status === 'active';
@@ -334,15 +316,12 @@ export const CoordinatorTeachersPage: React.FC = () => {
             return (
               <Card
                 key={item.person.id}
-                className={`flex flex-col justify-between ${
-                  isActive
-                    ? 'border-t-4 border-t-primary-700 dark:border-t-primary-500'
-                    : 'opacity-80 border-t-4 border-t-slate-400'
-                }`}
+                className={!isActive ? 'opacity-75' : undefined}
                 footer={
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Button
                       variant="ghost"
+                      size="sm"
                       onClick={() => handleOpenEditModal(item.person)}
                       leftIcon={<FilePenLine className="h-4 w-4" />}
                     >
@@ -350,7 +329,8 @@ export const CoordinatorTeachersPage: React.FC = () => {
                     </Button>
 
                     <Button
-                      variant={isActive ? 'danger' : 'primary'}
+                      variant={isActive ? 'danger' : 'secondary'}
+                      size="sm"
                       onClick={() => setStatusTarget(item.person)}
                       leftIcon={
                         isActive ? (
@@ -365,67 +345,50 @@ export const CoordinatorTeachersPage: React.FC = () => {
                   </div>
                 }
               >
-                <div className="space-y-4">
-                  {/* Topo do Card: Avatar + Nome + Status */}
+                <div className="space-y-3.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-100 text-base font-extrabold text-primary-900 dark:bg-primary-950 dark:text-primary-200"
+                      <span
+                        className="font-mono flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-subtle text-xs font-semibold text-ink"
                         aria-hidden="true"
                       >
                         {getInitials(displayName)}
-                      </div>
+                      </span>
                       <div className="min-w-0">
-                        <h2 className="text-lg font-extrabold text-slate-900 dark:text-white truncate">
+                        <h2 className="truncate text-base font-semibold text-ink">
                           {displayName}
                         </h2>
-                        {item.person.socialName && (
-                          <p className="text-xs text-slate-500 truncate">
-                            Reg. civil: {item.person.fullName}
-                          </p>
-                        )}
+                        <p className="text-xs text-ink-muted">
+                          <span className="font-mono tabular-nums">{item.assignedClassesCount}</span>{' '}
+                          {item.assignedClassesCount === 1 ? 'turma' : 'turmas'} •{' '}
+                          <span className="font-mono tabular-nums">{item.lessonsCount}</span> aulas
+                        </p>
                       </div>
                     </div>
 
-                    <Badge variant={isActive ? 'success' : 'neutral'}>
+                    <Badge variant={isActive ? 'progress' : 'neutral'}>
                       {isActive ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </div>
 
-                  {/* Disciplinas Atribuídas */}
                   <div className="flex flex-wrap gap-1.5">
                     {item.assignedSubjectNames.map((subjName) => (
-                      <Badge key={subjName} variant="primary">
+                      <Badge key={subjName} variant="academic">
                         {subjName}
                       </Badge>
                     ))}
                   </div>
 
-                  {/* Métricas e Contato */}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs space-y-1.5 dark:border-slate-800 dark:bg-slate-950/50">
-                    <p className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
-                      <Calendar className="h-3.5 w-3.5 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                      <span>
-                        {item.assignedClassesCount}{' '}
-                        {item.assignedClassesCount === 1 ? 'turma' : 'turmas'} •{' '}
-                        {item.lessonsCount} aulas registradas
-                      </span>
-                    </p>
-                    <p className="flex items-center gap-2 text-slate-700 dark:text-slate-300 truncate">
-                      <Mail className="h-3.5 w-3.5 text-primary-700 dark:text-primary-400 shrink-0" aria-hidden="true" />
+                  <div className="space-y-1 pt-1 text-xs text-ink-muted">
+                    <p className="flex items-center gap-2 truncate">
+                      <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <span className="truncate">{item.person.email}</span>
                     </p>
-                    <p className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                      <Phone className="h-3.5 w-3.5 text-primary-700 dark:text-primary-400 shrink-0" aria-hidden="true" />
-                      <span>{item.person.phone}</span>
+                    <p className="flex items-center gap-2">
+                      <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="font-mono tabular-nums">{item.person.phone}</span>
                     </p>
                   </div>
-
-                  {item.person.generalNotes && (
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      {item.person.generalNotes}
-                    </p>
-                  )}
                 </div>
               </Card>
             );

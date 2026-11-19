@@ -1,14 +1,11 @@
 import React, { useMemo } from 'react';
 import {
   Award,
-  FilePenLine,
-  GraduationCap,
   HelpCircle,
   TrendingUp,
 } from 'lucide-react';
 import {
   Badge,
-  CalloutAlert,
   Card,
   MetricCard,
   ProgressBarGroup,
@@ -18,7 +15,6 @@ import { useMockDatabase } from '../../contexts/MockDatabaseContext';
 import {
   formatDateBR,
   formatEnemScore,
-  getDisplayName,
 } from '../../utils/formatters';
 import {
   GuardianCoordinationSupportBox,
@@ -122,81 +118,35 @@ export const GuardianPerformancePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Cabeçalho Linear */}
-      <header className="space-y-2">
-        <Badge variant="primary" icon={<GraduationCap className="h-4 w-4" />}>
-          Notas e Evolução nos Simulados (Somente Leitura)
-        </Badge>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Avaliações e Desempenho no ENEM
-        </h1>
-        <p className="text-base sm:text-lg text-slate-700 dark:text-slate-200 leading-relaxed">
-          Esta página mostra as notas que o(a) estudante tirou nas provas de treino (chamadas de{' '}
-          <strong>Simulados</strong>) realizadas no cursinho.
-        </p>
-      </header>
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <h1>Avaliações</h1>
 
-      {/* Seletor de Estudante Vinculado */}
       <GuardianStudentSelectorBar />
 
       {student && linkedStudentsForGuardian.length > 0 && (
         <>
-          {/* Explicação curta e didática da Escala de 0 a 1.000 pontos do ENEM */}
-          <CalloutAlert
-            variant="info"
-            title="Como funcionam as notas do ENEM? (Escala de 0 a 1.000 pontos)"
-          >
-            Diferente da escola comum (onde as notas vão de 0 a 10), no exame do{' '}
-            <strong>ENEM</strong> as notas vão de <strong>0 até 1.000 pontos</strong>:
-            <ul className="mt-2 list-disc list-inside space-y-1">
-              <li>
-                <strong>Acima de 600 pontos:</strong> mostra que o(a) estudante já tem uma boa base.
-              </li>
-              <li>
-                <strong>Acima de 700 pontos:</strong> é um ótimo resultado, com boas chances de
-                vaga em universidades públicas e bolsas integrais.
-              </li>
-            </ul>
-          </CalloutAlert>
-
-          {/* Resumo Principal do Último Simulado */}
           {latestSimulado && (
-            <Card
-              as="section"
-              title={`Resumo do Último Simulado de ${getDisplayName(student)}`}
-              subtitle="Esta seção destaca a média geral e a nota da redação conquistadas na prova mais recente."
-            >
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <MetricCard
-                    title="Média Geral no Último Simulado"
-                    value={overallScore}
-                    scale="enem"
-                    accentColor="secondary"
-                    icon={<GraduationCap className="h-6 w-6" />}
-                    trend={{
-                      direction: deltaFromPrevious >= 0 ? 'up' : 'down',
-                      label: `Subiu +${deltaFromPrevious} pontos desde a prova anterior`,
-                      variant: 'success',
-                    }}
-                    subtitle={`No total do semestre, já subiu +${deltaFromFirst} pontos.`}
-                  />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <MetricCard
+                title="Último Simulado ENEM"
+                value={overallScore}
+                scale="enem"
+                accentColor="assess"
+                trend={{
+                  direction: deltaFromPrevious >= 0 ? 'up' : 'down',
+                  label: `+${deltaFromPrevious} pts vs. anterior (+${deltaFromFirst} no semestre)`,
+                  variant: 'success',
+                }}
+              />
 
-                  <MetricCard
-                    title="Nota na Redação"
-                    value={redacaoScore}
-                    scale="enem"
-                    accentColor="primary"
-                    icon={<FilePenLine className="h-6 w-6" />}
-                    statusBadge={{
-                      label: 'Muito bom!',
-                      variant: 'success',
-                    }}
-                    subtitle="A redação avalia escrita, organização das ideias e proposta de solução."
-                  />
-                </div>
-              </div>
-            </Card>
+              <MetricCard
+                title="Nota de Redação"
+                value={redacaoScore}
+                scale="enem"
+                accentColor="academic"
+                subtitle="Escala oficial 0–1000"
+              />
+            </div>
           )}
 
           {/* Notas por Área do ENEM explicadas com vocabulário cotidiano */}
@@ -206,8 +156,8 @@ export const GuardianPerformancePage: React.FC = () => {
             subtitle="Esta seção mostra a pontuação em cada grupo de matérias cobradas no ENEM (de 0 a 1.000 pontos)."
           >
             <div className="space-y-5">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300 flex items-start gap-2.5">
-                <HelpCircle className="h-5 w-5 text-primary-700 dark:text-primary-400 shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 flex items-start gap-2.5">
+                <HelpCircle className="h-5 w-5 text-primary-700 shrink-0 mt-0.5" aria-hidden="true" />
                 <span>
                   Quanto mais preenchida estiver a barra abaixo, mais próximo de{' '}
                   <strong>1.000 pontos</strong> o(a) estudante chegou naquela matéria.
@@ -239,10 +189,10 @@ export const GuardianPerformancePage: React.FC = () => {
               {[...studentSimulados].reverse().map(({ assessment, grade }, idx) => (
                 <article
                   key={grade.id}
-                  className="rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-950/50 space-y-3"
+                  className="rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 sm:p-5 space-y-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-extrabold text-primary-900 dark:text-primary-300">
+                    <span className="text-sm font-extrabold text-primary-900">
                       Realizado em {formatDateBR(assessment.date)}
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
@@ -257,19 +207,19 @@ export const GuardianPerformancePage: React.FC = () => {
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                  <h3 className="text-lg font-extrabold text-slate-900">
                     {assessment.title}
                   </h3>
 
-                  <p className="text-base text-slate-700 dark:text-slate-200">
+                  <p className="text-base text-slate-700">
                     Nota da Redação nesta prova:{' '}
                     <strong>{formatEnemScore(grade.areaScores?.redacao ?? 0)}</strong> (de 1.000
                     pontos).
                   </p>
 
                   {grade.feedback && (
-                    <div className="rounded-xl border border-primary-200 bg-white p-3.5 text-base text-slate-800 dark:border-primary-800 dark:bg-slate-900 dark:text-slate-100">
-                      <span className="block text-xs font-extrabold uppercase tracking-wider text-primary-900 dark:text-primary-300 mb-1">
+                    <div className="rounded-xl border border-primary-200 bg-white p-3.5 text-base text-slate-800">
+                      <span className="block text-xs font-extrabold uppercase tracking-wider text-primary-900 mb-1">
                         Recado dos Professores sobre esta prova:
                       </span>
                       "{grade.feedback}"

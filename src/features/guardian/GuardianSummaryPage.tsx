@@ -1,11 +1,8 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle,
   ArrowRight,
   Calendar,
-  CalendarCheck,
-  CheckCircle2,
   Clock,
   FilePenLine,
   GraduationCap,
@@ -21,7 +18,6 @@ import {
 import { useSession } from '../../contexts/SessionContext';
 import { useMockDatabase } from '../../contexts/MockDatabaseContext';
 import {
-  evaluateAttendanceStatus,
   formatDateBR,
   formatEnemScore,
   getDisplayName,
@@ -138,136 +134,79 @@ export const GuardianSummaryPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Saudação Linear e Respeitosa */}
-      <header className="space-y-2">
-        <Badge variant="primary">Portal da Família e Responsáveis</Badge>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Olá, {guardianGreetingName}! Bem-vindo(a) ao acompanhamento escolar.
-        </h1>
-        <p className="text-base sm:text-lg text-slate-700 dark:text-slate-200 leading-relaxed">
-          Aqui você acompanha de forma simples a presença nas aulas, as notas nos simulados do ENEM
-          e os avisos importantes do <strong>Cursinho Comunitário Bonsucesso</strong>.
-        </p>
-      </header>
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Acompanhamento</h1>
+        <span className="text-xs text-ink-muted">Responsável: {guardianGreetingName}</span>
+      </div>
 
-      {/* 1. SELETOR DE ESTUDANTE VINCULADO (OU EMPTY STATE SE NÃO HOUVER VÍNCULO) */}
       <GuardianStudentSelectorBar />
 
-      {/* Se houver estudante selecionado, exibe os blocos lineares */}
       {student && linkedStudentsForGuardian.length > 0 && (
         <>
-          {/* 2. CARTÃO DE "SITUAÇÃO GERAL" (Semáforo textual e visual claro) */}
-          {(() => {
-            const evalStatus = evaluateAttendanceStatus(attendanceStats.percentage);
-            const isCritical = evalStatus.status === 'critical';
-            const studentFirstName = getDisplayName(student).split(' ')[0];
+          {/* KPIs Ultra-Limpos */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <MetricCard
+              title="Frequência nas Aulas"
+              value={attendanceStats.percentage}
+              scale="percentage"
+              accentColor={attendanceStats.percentage < 75 ? 'assess' : 'progress'}
+              statusBadge={{
+                label: `${attendanceStats.presentCount} presenças • ${attendanceStats.absentCount} faltas`,
+                variant: attendanceStats.percentage < 75 ? 'warning' : 'success',
+              }}
+            />
 
-            return (
-              <Card
-                as="section"
-                className={
-                  isCritical
-                    ? 'border-2 border-warning-500 bg-warning-50/40 dark:border-amber-600 dark:bg-warning-900/20'
-                    : 'border-2 border-emerald-500 bg-emerald-50/40 dark:border-emerald-600 dark:bg-emerald-950/20'
-                }
-                title={`Situação Geral de ${getDisplayName(student)}`}
-                subtitle="Esta seção mostra um resumo direto de como está a participação do(a) estudante neste semestre."
-              >
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    {isCritical ? (
-                      <span className="inline-flex items-center gap-2 rounded-xl bg-warning-700 px-4 py-2 text-base font-extrabold text-white dark:bg-amber-500 dark:text-slate-950">
-                        <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                        <span>Ponto de atenção na frequência ({attendanceStats.percentage}%)</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-base font-extrabold text-white dark:bg-emerald-500 dark:text-slate-950">
-                        <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
-                        <span>Acompanhamento e presença em dia ({attendanceStats.percentage}%)</span>
-                      </span>
-                    )}
+            <MetricCard
+              title="Último Simulado ENEM"
+              value={simuladoSummary?.overallScore ?? 0}
+              scale="enem"
+              accentColor="assess"
+              trend={
+                simuladoSummary
+                  ? {
+                      direction: simuladoSummary.deltaFromPrevious >= 0 ? 'up' : 'down',
+                      label: `+${simuladoSummary.deltaFromFirst} pts no semestre`,
+                      variant: 'success',
+                    }
+                  : undefined
+              }
+            />
 
-                    <Badge variant="neutral">
-                      {studentClassRoom?.name ?? 'Turma Esperança • Noite'}
-                    </Badge>
-                  </div>
+            <MetricCard
+              title="Redação ENEM"
+              value={simuladoSummary?.redacaoScore ?? 0}
+              scale="enem"
+              accentColor="academic"
+              subtitle={simuladoSummary?.latestTitle ?? 'Última correção'}
+            />
+          </div>
 
-                  <p className="text-base sm:text-lg text-slate-800 dark:text-slate-100 leading-relaxed">
-                    {isCritical ? (
-                      <>
-                        <strong>O que isso significa:</strong> {studentFirstName} está indo muito
-                        bem nos simulados do ENEM, mas a presença nas aulas está em{' '}
-                        <strong>{attendanceStats.percentage}%</strong> (faltou a{' '}
-                        <strong>
-                          {attendanceStats.absentCount}{' '}
-                          {attendanceStats.absentCount === 1 ? 'aula' : 'aulas'}
-                        </strong>{' '}
-                        de {attendanceStats.totalClasses} registradas). O ideal é manter pelo menos{' '}
-                        <strong>75% de presença</strong> para não perder explicações importantes.
-                      </>
-                    ) : (
-                      <>
-                        <strong>O que isso significa:</strong> {studentFirstName} está com ótima
-                        participação nas aulas (<strong>{attendanceStats.percentage}% de presença</strong>)
-                        e entregando os simulados preparatórios para o ENEM em dia. Continue
-                        incentivando essa rotina em casa!
-                      </>
-                    )}
-                  </p>
-                </div>
-              </Card>
-            );
-          })()}
-
-          {/* 3. RESUMO DE FREQUÊNCIA (Explicado por extenso + Botão grande para detalhes) */}
           <Card
             as="section"
             title="Presença nas Aulas"
-            subtitle="Esta seção mostra quantas aulas o(a) estudante assistiu, quantas faltou e qual foi a última aula frequentada."
-          >
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <MetricCard
-                  title={`Presença nas aulas: ${attendanceStats.percentage}%`}
-                  value={`${attendanceStats.presentCount} presenças`}
-                  scale="raw"
-                  accentColor={attendanceStats.percentage < 75 ? 'warning' : 'success'}
-                  icon={<CalendarCheck className="h-6 w-6" />}
-                  statusBadge={{
-                    label:
-                      attendanceStats.percentage < 75
-                        ? `Atenção: faltou a ${attendanceStats.absentCount} aulas`
-                        : 'Presença acima de 75%',
-                    variant: attendanceStats.percentage < 75 ? 'warning' : 'success',
-                  }}
-                  subtitle={`De um total de ${attendanceStats.totalClasses} aulas registradas neste semestre, compareceu a ${attendanceStats.presentCount} e faltou a ${attendanceStats.absentCount}.`}
-                />
-
-                <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/50 flex flex-col justify-between gap-3">
-                  <div className="space-y-2">
-                    <span className="inline-flex items-center gap-1.5 text-sm font-bold text-primary-800 dark:text-primary-300">
-                      <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span>Última aula frequentada</span>
-                    </span>
-                    <p className="text-lg font-extrabold text-slate-900 dark:text-white leading-snug">
-                      {attendanceStats.lastAttendedLessonText}
-                    </p>
-                  </div>
-
-                  <p className="text-sm text-slate-600 dark:text-slate-300 border-t border-slate-200 pt-2.5 dark:border-slate-800">
-                    Horário da turma: {studentClassRoom?.scheduleSummary}
-                  </p>
-                </div>
-              </div>
-
+            headerAction={
               <Link
                 to="/responsavel/frequencia"
-                className="inline-flex w-full min-h-[52px] items-center justify-center gap-2.5 rounded-xl bg-primary-700 px-6 py-3 text-base sm:text-lg font-extrabold text-white shadow-xs hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-500 transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-medium text-ink-muted hover:text-ink"
               >
-                <CalendarCheck className="h-5 w-5" aria-hidden="true" />
-                <span>Ver detalhes de presença dia por dia</span>
-                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                <span>Ver histórico</span>
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
+            }
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-ink">
+                  Última aula frequentada: {attendanceStats.lastAttendedLessonText}
+                </p>
+                <p className="text-xs text-ink-muted">
+                  Horário da turma: {studentClassRoom?.scheduleSummary}
+                </p>
+              </div>
+              <Badge variant={attendanceStats.percentage < 75 ? 'assess' : 'progress'}>
+                {attendanceStats.percentage < 75 ? 'Abaixo de 75%' : 'Frequência em dia'}
+              </Badge>
             </div>
           </Card>
 
@@ -326,7 +265,7 @@ export const GuardianSummaryPage: React.FC = () => {
 
                 <Link
                   to="/responsavel/simulados"
-                  className="inline-flex w-full min-h-[52px] items-center justify-center gap-2.5 rounded-xl border-2 border-secondary-700 bg-secondary-50/70 px-6 py-3 text-base sm:text-lg font-extrabold text-secondary-950 hover:bg-secondary-100 dark:border-secondary-500 dark:bg-secondary-950/60 dark:text-secondary-100 dark:hover:bg-secondary-900 transition-colors"
+                  className="inline-flex w-full min-h-[52px] items-center justify-center gap-2.5 rounded-xl border-2 border-secondary-700 bg-secondary-50/70 px-6 py-3 text-base sm:text-lg font-extrabold text-secondary-950 hover:bg-secondary-100 transition-colors"
                 >
                   <TrendingUp className="h-5 w-5" aria-hidden="true" />
                   <span>Ver todas as notas por matéria</span>
@@ -334,7 +273,7 @@ export const GuardianSummaryPage: React.FC = () => {
                 </Link>
               </div>
             ) : (
-              <p className="text-base text-slate-700 dark:text-slate-300">
+              <p className="text-base text-slate-700">
                 Ainda não há notas de simulados lançadas para este estudante neste semestre.
               </p>
             )}
@@ -350,7 +289,7 @@ export const GuardianSummaryPage: React.FC = () => {
               {GUARDIAN_NOTICES_AND_MEETINGS.slice(0, 3).map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-950/50 space-y-2"
+                  className="rounded-2xl border-2 border-slate-200 bg-slate-50/70 p-4 sm:p-5 space-y-2"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Badge
@@ -364,30 +303,30 @@ export const GuardianSummaryPage: React.FC = () => {
                     >
                       {item.categoryLabel}
                     </Badge>
-                    <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-slate-800 dark:text-slate-200">
-                      <Calendar className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-slate-800">
+                      <Calendar className="h-4 w-4 text-primary-700" aria-hidden="true" />
                       <span>Data: {formatDateBR(item.date)}</span>
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                  <h3 className="text-lg font-extrabold text-slate-900">
                     {item.title}
                   </h3>
 
-                  <p className="text-base text-slate-700 dark:text-slate-200 leading-relaxed">
+                  <p className="text-base text-slate-700 leading-relaxed">
                     {item.plainExplanation}
                   </p>
 
-                  <div className="pt-2 flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  <div className="pt-2 flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700">
                     {item.timeRange && (
                       <span className="inline-flex items-center gap-1.5">
-                        <Clock className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                        <Clock className="h-4 w-4 text-primary-700" aria-hidden="true" />
                         <span>Horário: {item.timeRange}</span>
                       </span>
                     )}
                     {item.location && (
                       <span className="inline-flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                        <MapPin className="h-4 w-4 text-primary-700" aria-hidden="true" />
                         <span>Local: {item.location}</span>
                       </span>
                     )}
@@ -397,7 +336,7 @@ export const GuardianSummaryPage: React.FC = () => {
 
               <Link
                 to="/responsavel/calendario"
-                className="inline-flex w-full min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-6 py-3 text-base font-extrabold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="inline-flex w-full min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-6 py-3 text-base font-extrabold text-slate-800 hover:bg-slate-100 transition-colors"
               >
                 <Calendar className="h-5 w-5" aria-hidden="true" />
                 <span>Ver todos os avisos e reuniões de pais</span>

@@ -1,6 +1,10 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useId, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '../../utils/formatters';
+import { VARIANTS } from '../../lib/motion';
+import { useFocusTrap } from './useFocusTrap';
+import { SemanticTone, TONE_FILL } from './tones';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -9,15 +13,20 @@ export interface ModalProps {
   description?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg';
+  tone?: SemanticTone;
+  /** Se true, solicita confirmação rápida antes de descartar alterações não salvas */
+  isDirty?: boolean;
 }
 
-const FOCUSABLE_SELECTOR =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const SIZE: Record<NonNullable<ModalProps['size']>, string> = {
+  sm: 'max-w-md',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+};
 
 /**
- * Modal acessível com Trap de Foco (Tab / Shift+Tab), fechamento via tecla Esc,
- * restauração do foco ao elemento disparador e botão de fechar com ícone + texto "Fechar".
+ * Modal com animação GPU-only (backdrop opacity 0->1 em 150ms + dialog scale 0.96->1 em 160ms).
  */
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
@@ -27,135 +36,96 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   footer,
   size = 'md',
+  tone,
+  isDirty = false,
 }) => {
   const titleId = useId();
   const descriptionId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
-  const previousActiveElement = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    if (!isOpen) return;
+  const handleRequestClose = () => {
+    if (
+      isDirty &&
+      !window.confirm('Existem alterações não salvas. Deseja realmente descartar?')
+    ) {
+      return;
+    }
+    onClose();
+  };
 
-    previousActiveElement.current = document.activeElement as HTMLElement;
-
-    // Foca o primeiro elemento interativo dentro do modal
-    const timer = window.setTimeout(() => {
-      if (!dialogRef.current) return;
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-      if (focusable.length > 0) {
-        focusable[0].focus();
-      } else {
-        dialogRef.current.focus();
-      }
-    }, 20);
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key === 'Tab' && dialogRef.current) {
-        const focusableElements = Array.from(
-          dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-        );
-
-        if (focusableElements.length === 0) {
-          event.preventDefault();
-          return;
-        }
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (event.shiftKey) {
-          if (document.activeElement === firstElement) {
-            event.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            event.preventDefault();
-            firstElement.focus();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-      if (previousActiveElement.current) {
-        previousActiveElement.current.focus();
-      }
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
+  useFocusTrap(isOpen, dialogRef, handleRequestClose);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-xs animate-fadeIn"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descriptionId : undefined}
-        tabIndex={-1}
-        className={cn(
-          'relative w-full rounded-2xl border-2 border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 overflow-hidden',
-          size === 'md' ? 'max-w-lg' : 'max-w-2xl'
-        )}
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4 dark:border-slate-800">
-          <div>
-            <h2
-              id={titleId}
-              className="text-xl font-bold text-slate-900 dark:text-slate-100"
-            >
-              {title}
-            </h2>
-            {description && (
-              <p
-                id={descriptionId}
-                className="mt-1 text-base text-slate-600 dark:text-slate-300"
-              >
-                {description}
-              </p>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="modal-backdrop"
+          variants={VARIANTS.backdrop}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-backdrop backdrop-blur-[2px] p-0 sm:items-center sm:p-6"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) handleRequestClose();
+          }}
+        >
+          <motion.div
+            key="modal-panel"
+            ref={dialogRef}
+            variants={VARIANTS.modalPanel}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={description ? descriptionId : undefined}
+            tabIndex={-1}
+            className={cn(
+              'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-lg border border-line bg-surface sm:rounded-lg',
+              SIZE[size]
             )}
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
           >
-            <X className="h-4 w-4" aria-hidden="true" />
-            <span>Fechar</span>
-          </button>
-        </div>
+            {tone && (
+              <span
+                className={cn('absolute inset-x-0 top-0 h-1', TONE_FILL[tone])}
+                aria-hidden="true"
+              />
+            )}
 
-        <div className="p-6 max-h-[70vh] overflow-y-auto">{children}</div>
+            <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
+              <div className="min-w-0 space-y-1">
+                <h2 id={titleId} className="text-lg font-semibold tracking-tight text-ink">
+                  {title}
+                </h2>
+                {description && (
+                  <p id={descriptionId} className="text-sm text-ink-muted">
+                    {description}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleRequestClose}
+                aria-label="Fechar modal"
+                title="Fechar modal"
+                className="-mr-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-muted transition-all duration-150 ease-out hover:bg-subtle hover:text-ink active:scale-95"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
 
-        {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-950/60">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
+            <div className="flex-1 overflow-y-auto p-6">{children}</div>
+
+            {footer && (
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-6 py-4">
+                {footer}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

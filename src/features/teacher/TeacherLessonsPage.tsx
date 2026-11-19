@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  BookOpen,
-  Calendar,
   ClipboardCheck,
-  Clock,
   ExternalLink,
   FilePenLine,
   Link2,
@@ -192,176 +189,135 @@ export const TeacherLessonsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Badge variant="primary" icon={<BookOpen className="h-4 w-4" />}>
-            Gestão de Aulas e Plano de Ensino (UC15)
-          </Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Minhas Aulas
-          </h1>
-          <p className="mt-1 max-w-2xl text-base text-slate-600 dark:text-slate-300">
-            Cadastre o conteúdo programático das aulas, adicione links do Google Sala de Aula ou
-            YouTube e acesse rapidamente a lista de chamada.
-          </p>
-        </div>
+      {/* Cabeçalho enxuto (Regra 2) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1>Aulas &amp; Classroom</h1>
 
         <Button
           variant="primary"
-          size="lg"
-          leftIcon={<Plus className="h-5 w-5" />}
+          leftIcon={<Plus className="h-4 w-4" />}
           onClick={handleOpenNewLessonModal}
         >
-          Cadastrar Nova Aula
+          Nova Aula
         </Button>
       </div>
 
-      {/* Filtros por Turma e Status */}
-      <Card
-        as="section"
-        title="Filtrar Aulas do Diário"
-        subtitle="Selecione a turma ou o status da aula para localizar um encontro rapidamente."
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Select
-            label="Filtrar por Turma"
-            value={filterClassRoomId}
-            onChange={(e) => setFilterClassRoomId(e.target.value)}
-            options={[
-              { value: 'all', label: 'Todas as Turmas do Cursinho' },
-              ...db.classRooms.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-          />
+      {/* Filtros inline */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Select
+          label="Turma"
+          value={filterClassRoomId}
+          onChange={(e) => setFilterClassRoomId(e.target.value)}
+          options={[
+            { value: 'all', label: 'Todas as Turmas' },
+            ...db.classRooms.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+        />
 
-          <Select
-            label="Filtrar por Status da Aula"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            options={[
-              { value: 'all', label: 'Todos os Status (Ministradas e Agendadas)' },
-              { value: 'agendada', label: 'Aulas Agendadas (Próximos Encontros)' },
-              { value: 'ministrada', label: 'Aulas Ministradas (Concluídas)' },
-              { value: 'cancelada', label: 'Aulas Canceladas / Feriado' },
-            ]}
-          />
-        </div>
-      </Card>
+        <Select
+          label="Situação"
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          options={[
+            { value: 'all', label: 'Todas' },
+            { value: 'agendada', label: 'Agendadas' },
+            { value: 'ministrada', label: 'Ministradas' },
+            { value: 'cancelada', label: 'Canceladas' },
+          ]}
+        />
+      </div>
 
-      {/* Lista de Aulas */}
+      {/* Lista de Aulas em Linhas Horizontais Limpas (Regra 5) */}
       {filteredLessons.length > 0 ? (
-        <div className="space-y-4">
-          {filteredLessons.map((lesson) => {
-            const classRoom = db.classRooms.find((c) => c.id === lesson.classRoomId);
-            const subject = db.subjects.find((s) => s.id === lesson.subjectId);
-            const teacher = db.persons.find((p) => p.id === lesson.teacherPersonId);
-            const classSubject = db.classSubjects.find(
-              (cs) => cs.id === lesson.classSubjectId
-            );
-            const effectiveUrl = lesson.externalUrl || classSubject?.classroomUrl;
+        <Card noPadding>
+          <ul className="divide-y divide-line">
+            {filteredLessons.map((lesson) => {
+              const classRoom = db.classRooms.find((c) => c.id === lesson.classRoomId);
+              const subject = db.subjects.find((s) => s.id === lesson.subjectId);
+              const classSubject = db.classSubjects.find(
+                (cs) => cs.id === lesson.classSubjectId
+              );
+              const effectiveUrl = lesson.externalUrl || classSubject?.classroomUrl;
 
-            const enrolledCount = db.enrollments.filter(
-              (e) => e.classRoomId === lesson.classRoomId && e.status === 'ativa'
-            ).length;
-            const recordedAttendancesCount = db.attendances.filter(
-              (a) => a.lessonId === lesson.id
-            ).length;
+              const enrolledCount = db.enrollments.filter(
+                (e) => e.classRoomId === lesson.classRoomId && e.status === 'ativa'
+              ).length;
+              const recordedAttendancesCount = db.attendances.filter(
+                (a) => a.lessonId === lesson.id
+              ).length;
 
-            return (
-              <article
-                key={lesson.id}
-                className="rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900 space-y-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-primary-900 dark:text-primary-300">
-                      <Calendar className="h-4 w-4" aria-hidden="true" />
-                      <span>{formatDateBR(lesson.date)}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-sm font-bold text-slate-600 dark:text-slate-300">
-                      <Clock className="h-4 w-4" aria-hidden="true" />
-                      <span>
-                        {lesson.startTime} às {lesson.endTime}
+              return (
+                <li
+                  key={lesson.id}
+                  className="flex flex-col gap-3 p-5 transition-colors hover:bg-subtle sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-semibold text-ink tabular-nums">
+                        {formatDateBR(lesson.date)} • {lesson.startTime}–{lesson.endTime}
                       </span>
-                    </span>
-                    <Badge variant="primary">{subject?.name ?? 'Disciplina'}</Badge>
-                    <Badge variant="neutral">{classRoom?.name ?? 'Turma'}</Badge>
-                  </div>
+                      <Badge variant="academic">{subject?.name ?? 'Disciplina'}</Badge>
+                      <Badge variant="neutral">{classRoom?.name ?? 'Turma'}</Badge>
+                      <Badge
+                        variant={
+                          lesson.status === 'ministrada'
+                            ? 'progress'
+                            : lesson.status === 'agendada'
+                            ? 'assess'
+                            : 'critical'
+                        }
+                      >
+                        {lesson.status}
+                      </Badge>
+                    </div>
 
-                  <Badge
-                    variant={
-                      lesson.status === 'ministrada'
-                        ? 'success'
-                        : lesson.status === 'agendada'
-                        ? 'warning'
-                        : 'danger'
-                    }
-                  >
-                    {lesson.status === 'ministrada'
-                      ? 'Aula Ministrada'
-                      : lesson.status === 'agendada'
-                      ? 'Aula Agendada'
-                      : 'Aula Cancelada'}
-                  </Badge>
-                </div>
+                    <h2 className="text-base font-semibold text-ink">{lesson.topic}</h2>
 
-                <div>
-                  <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
-                    {lesson.topic}
-                  </h2>
-                  {lesson.notes && (
-                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                      {lesson.notes}
+                    <p className="text-xs text-ink-muted">
+                      Presença:{' '}
+                      <span className="font-mono tabular-nums">
+                        {recordedAttendancesCount}/{enrolledCount}
+                      </span>{' '}
+                      registrados
+                      {lesson.notes ? ` • ${lesson.notes}` : ''}
                     </p>
-                  )}
-                </div>
-
-                <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                    <span>Docente: <strong>{teacher?.fullName ?? 'Professor(a)'}</strong></span>
-                    <span className="mx-2">•</span>
-                    <span>
-                      Chamada:{' '}
-                      <strong>
-                        {recordedAttendancesCount} de {enrolledCount} alunos registrados
-                      </strong>
-                    </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     {effectiveUrl && (
                       <a
                         href={effectiveUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-md bg-academic-bg px-3 text-xs font-medium text-academic hover:bg-academic hover:text-white"
                       >
-                        <span>Material / Classroom</span>
-                        <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                        <span>Classroom</span>
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     )}
 
                     <Button
                       variant="ghost"
+                      size="sm"
                       onClick={() => handleOpenEditLessonModal(lesson)}
                       leftIcon={<FilePenLine className="h-4 w-4" />}
                     >
-                      Editar Aula
+                      Editar
                     </Button>
 
                     <Link
                       to={`/professor/chamada?lessonId=${lesson.id}`}
-                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2 text-sm font-bold text-white hover:bg-primary-800 dark:bg-primary-600"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-xs font-medium text-ink hover:bg-subtle"
                     >
-                      <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
-                      <span>Fazer Chamada</span>
+                      <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Chamada</span>
                     </Link>
                   </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
       ) : (
         <EmptyState
           title="Nenhuma aula encontrada para este filtro"

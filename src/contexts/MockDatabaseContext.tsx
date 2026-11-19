@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   Assessment,
   Attendance,
@@ -69,38 +76,66 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(db));
-    } catch {
-      // Ignora erro de quota
-    }
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(db));
+      } catch {
+        // Ignora erro de quota
+      }
+    }, 120);
+    return () => window.clearTimeout(timer);
   }, [db]);
 
+  // Índice O(1) de pessoas por ID
+  const personByIdMap = useMemo(() => {
+    const map = new Map<string, Person>();
+    for (const p of db.persons) {
+      map.set(p.id, p);
+    }
+    return map;
+  }, [db.persons]);
+
+  // Índice O(1) de frequência acumulada por estudante (calculado em passagem única)
+  const attendancePercentageByStudentMap = useMemo(() => {
+    const totals = new Map<string, { attended: number; total: number }>();
+    for (const rec of db.attendances) {
+      const current = totals.get(rec.studentPersonId) ?? { attended: 0, total: 0 };
+      current.total += 1;
+      if (rec.presence === 'presente' || rec.presence === 'justificada') {
+        current.attended += 1;
+      }
+      totals.set(rec.studentPersonId, current);
+    }
+    const pctMap = new Map<string, number>();
+    totals.forEach((val, studentId) => {
+      pctMap.set(
+        studentId,
+        val.total > 0 ? Math.round((val.attended / val.total) * 100) : 100
+      );
+    });
+    return pctMap;
+  }, [db.attendances]);
+
   const getPersonById = useCallback(
-    (personId: string) => db.persons.find((p) => p.id === personId),
-    [db.persons]
+    (personId: string) => personByIdMap.get(personId),
+    [personByIdMap]
   );
 
   const getStudentsForGuardian = useCallback(
     (guardianPersonId: string) => {
       const links = db.responsibilities.filter((r) => r.guardianPersonId === guardianPersonId);
       return links
-        .map((link) => db.persons.find((p) => p.id === link.studentPersonId))
+        .map((link) => personByIdMap.get(link.studentPersonId))
         .filter((p): p is Person => Boolean(p));
     },
-    [db.responsibilities, db.persons]
+    [db.responsibilities, personByIdMap]
   );
 
   const getStudentAttendancePercentage = useCallback(
     (studentPersonId: string) => {
-      const records = db.attendances.filter((a) => a.studentPersonId === studentPersonId);
-      if (records.length === 0) return 100;
-      const attended = records.filter(
-        (a) => a.presence === 'presente' || a.presence === 'justificada'
-      ).length;
-      return Math.round((attended / records.length) * 100);
+      return attendancePercentageByStudentMap.get(studentPersonId) ?? 100;
     },
-    [db.attendances]
+    [attendancePercentageByStudentMap]
   );
 
   const addPersonWithAccount = useCallback(
@@ -369,40 +404,73 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setDb(INITIAL_MOCK_DATABASE);
   }, []);
 
+  const contextValue = useMemo<MockDatabaseContextValue>(
+    () => ({
+      db,
+      getPersonById,
+      getStudentsForGuardian,
+      getStudentAttendancePercentage,
+      addPersonWithAccount,
+      updatePerson,
+      togglePersonStatus,
+      addResponsibility,
+      updateResponsibility,
+      removeResponsibility,
+      addSubject,
+      updateSubject,
+      addClassRoomWithAssignments,
+      updateClassRoomWithAssignments,
+      recordAttendance,
+      recordAttendanceBatch,
+      addGrade,
+      saveGradeBatch,
+      addAssessment,
+      addLesson,
+      updateLesson,
+      addCalendarEvent,
+      updateCalendarEvent,
+      addEnrollment,
+      updateEnrollment,
+      addInternalDonation,
+      addPantryItem,
+      updatePantryItem,
+      resetDemoData,
+    }),
+    [
+      db,
+      getPersonById,
+      getStudentsForGuardian,
+      getStudentAttendancePercentage,
+      addPersonWithAccount,
+      updatePerson,
+      togglePersonStatus,
+      addResponsibility,
+      updateResponsibility,
+      removeResponsibility,
+      addSubject,
+      updateSubject,
+      addClassRoomWithAssignments,
+      updateClassRoomWithAssignments,
+      recordAttendance,
+      recordAttendanceBatch,
+      addGrade,
+      saveGradeBatch,
+      addAssessment,
+      addLesson,
+      updateLesson,
+      addCalendarEvent,
+      updateCalendarEvent,
+      addEnrollment,
+      updateEnrollment,
+      addInternalDonation,
+      addPantryItem,
+      updatePantryItem,
+      resetDemoData,
+    ]
+  );
+
   return (
-    <MockDatabaseContext.Provider
-      value={{
-        db,
-        getPersonById,
-        getStudentsForGuardian,
-        getStudentAttendancePercentage,
-        addPersonWithAccount,
-        updatePerson,
-        togglePersonStatus,
-        addResponsibility,
-        updateResponsibility,
-        removeResponsibility,
-        addSubject,
-        updateSubject,
-        addClassRoomWithAssignments,
-        updateClassRoomWithAssignments,
-        recordAttendance,
-        recordAttendanceBatch,
-        addGrade,
-        saveGradeBatch,
-        addAssessment,
-        addLesson,
-        updateLesson,
-        addCalendarEvent,
-        updateCalendarEvent,
-        addEnrollment,
-        updateEnrollment,
-        addInternalDonation,
-        addPantryItem,
-        updatePantryItem,
-        resetDemoData,
-      }}
-    >
+    <MockDatabaseContext.Provider value={contextValue}>
       {children}
     </MockDatabaseContext.Provider>
   );

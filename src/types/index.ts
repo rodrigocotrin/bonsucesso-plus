@@ -8,7 +8,9 @@
  * - Entidade central 'Person' compartilhada entre alunos, professores, coordenadores e responsáveis.
  */
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+export type ResolvedTheme = 'light' | 'dark';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
 

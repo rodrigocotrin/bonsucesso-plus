@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   CheckCircle2,
-  HeartHandshake,
+  Download,
   Minus,
   Plus,
   Save,
@@ -18,17 +19,15 @@ import {
 import { useMockDatabase } from '../../../contexts/MockDatabaseContext';
 import { useSession } from '../../../contexts/SessionContext';
 import { useToast } from '../../../contexts/ToastContext';
+import { exportToCsv } from '../../../lib/exportCsv';
+import { getDisplayName } from '../../../lib/person';
 import { InternalDonation, PantryItem } from '../../../types';
 import {
+  cn,
   formatCurrencyBRL,
   formatDateBR,
-  getDisplayName,
 } from '../../../utils/formatters';
 
-/**
- * Subcomponente coeso (SRP): Controle Interno de Operações, Copa/Merenda e Doações Recebidas.
- * Exclusivo da Coordenação (não existe perfil externo de Doador).
- */
 export const CoordinatorOperationsSection: React.FC = () => {
   const { currentPerson } = useSession();
   const {
@@ -38,9 +37,17 @@ export const CoordinatorOperationsSection: React.FC = () => {
     addInternalDonation,
   } = useMockDatabase();
   const { showToast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Estado do Modal de Registro de Doação Interna
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new-donation') {
+      setIsDonationModalOpen(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [donationType, setDonationType] = useState<'financeira' | 'material'>('material');
   const [isAnonymousDonor, setIsAnonymousDonor] = useState(false);
   const [selectedSupporterPersonId, setSelectedSupporterPersonId] = useState('');
@@ -55,7 +62,6 @@ export const CoordinatorOperationsSection: React.FC = () => {
   const [donationDate, setDonationDate] = useState('2026-11-19');
   const [donationError, setDonationError] = useState('');
 
-  // Estado do Modal de Novo Suprimento da Copa
   const [isPantryModalOpen, setIsPantryModalOpen] = useState(false);
   const [newPantryName, setNewPantryName] = useState('');
   const [newPantryCategory, setNewPantryCategory] =
@@ -70,11 +76,6 @@ export const CoordinatorOperationsSection: React.FC = () => {
       ...item,
       currentQuantity: nextQty,
       lastUpdated: new Date().toISOString().slice(0, 10),
-    });
-    showToast({
-      variant: 'info',
-      title: `Estoque atualizado: ${item.name}`,
-      description: `Quantidade atual: ${nextQty} ${item.unit}.`,
     });
   };
 
@@ -95,8 +96,7 @@ export const CoordinatorOperationsSection: React.FC = () => {
     setNewPantryName('');
     showToast({
       variant: 'success',
-      title: 'Item adicionado ao controle da copa!',
-      description: `${item.name} registrado com ${item.currentQuantity} ${item.unit}.`,
+      title: 'Item adicionado à copa',
     });
   };
 
@@ -111,13 +111,11 @@ export const CoordinatorOperationsSection: React.FC = () => {
     const supporterName = isAnonymousDonor
       ? 'Doador(a) Anônimo(a)'
       : linkedPerson
-      ? linkedPerson.fullName
+      ? getDisplayName(linkedPerson)
       : customSupporterName.trim();
 
     if (!supporterName) {
-      setDonationError(
-        'Informe o nome do apoiador, escolha uma pessoa cadastrada ou marque como Doador Anônimo.'
-      );
+      setDonationError('Informe o nome do apoiador ou marque como anônimo.');
       return;
     }
 
@@ -125,17 +123,17 @@ export const CoordinatorOperationsSection: React.FC = () => {
     if (donationType === 'financeira') {
       const parsedAmount = Number(amountBrlText.replace(',', '.'));
       if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-        setDonationError('Informe um valor financeiro válido em Reais (R$).');
+        setDonationError('Informe um valor válido em Reais (R$).');
         return;
       }
       quantityOrValue = formatCurrencyBRL(parsedAmount);
     } else {
       if (itemNameText.trim().length < 2) {
-        setDonationError('Informe o nome do item material doado (ex: Pacotes de biscoito, Resmas A4).');
+        setDonationError('Informe o item doado.');
         return;
       }
       const qty = Math.max(1, Number(itemQuantityText) || 1);
-      quantityOrValue = `${qty} ${itemUnitText.trim() || 'unidades'} de ${itemNameText.trim()}`;
+      quantityOrValue = `${qty} ${itemUnitText.trim() || 'un.'} de ${itemNameText.trim()}`;
     }
 
     const newDonation: InternalDonation = {
@@ -157,8 +155,8 @@ export const CoordinatorOperationsSection: React.FC = () => {
       description:
         donationDescription.trim() ||
         (donationType === 'financeira'
-          ? 'Contribuição financeira espontânea para manutenção comunitária.'
-          : `Doação material (${itemNameText.trim()}) para os estudantes do cursinho.`),
+          ? 'Contribuição financeira.'
+          : `Doação material (${itemNameText.trim()}).`),
       quantityOrValue,
       receivedDate: donationDate,
       registeredByPersonId: currentPerson?.id ?? 'per-coord-01',
@@ -174,166 +172,163 @@ export const CoordinatorOperationsSection: React.FC = () => {
 
     showToast({
       variant: 'success',
-      title: 'Doação registrada no controle interno!',
-      description: `${quantityOrValue} (${supporterName}) adicionado ao livro da coordenação.`,
+      title: 'Doação registrada',
     });
   };
 
   return (
-    <div className="space-y-8">
-      <CalloutAlert
-        variant="info"
-        title="Controle Interno de Operações, Copa e Doações Comunitárias"
-      >
-        Este módulo é de uso exclusivo da <strong>Coordenação do Cursinho Bonsucesso</strong> para
-        organizar os lanches gratuitos servidos aos estudantes e registrar apoios financeiros ou
-        materiais recebidos da comunidade (não existe login externo para doadores).
-      </CalloutAlert>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-        {/* Controle de Suprimentos da Copa / Merenda (6 cols) */}
-        <div className="lg:col-span-6">
-          <Card
-            as="section"
-            title="Estoque da Copa e Merenda Comunitária"
-            subtitle="Ajuste rapidamente as quantidades com os botões -1 e +1 ou cadastre um novo item."
-            headerAction={
-              <Button
-                variant="primary"
-                leftIcon={<Plus className="h-4 w-4" />}
-                onClick={() => setIsPantryModalOpen(true)}
-              >
-                Novo Item
-              </Button>
-            }
-          >
-            <div className="space-y-3">
-              {db.pantryItems.map((item) => {
-                const isLowStock = item.currentQuantity < item.minimumThreshold;
-                return (
-                  <div
-                    key={item.id}
-                    className={`rounded-2xl border-2 p-4 transition-all ${
-                      isLowStock
-                        ? 'border-warning-500/70 bg-warning-50/50 dark:border-amber-700 dark:bg-warning-950/20'
-                        : 'border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950/50'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
-                          {item.name}
-                        </h4>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                          Estoque mínimo recomendado: {item.minimumThreshold} {item.unit} •
-                          Atualizado em {formatDateBR(item.lastUpdated)}
-                        </p>
-                      </div>
-
-                      <Badge variant={isLowStock ? 'warning' : 'success'}>
-                        {isLowStock ? 'Repor estoque' : 'Estoque em dia'}
-                      </Badge>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                      <span className="text-lg font-extrabold text-slate-900 dark:text-white">
-                        {item.currentQuantity} {item.unit}
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+      {/* Estoque da Copa (Linhas Horizontais Limpas — sem sub-cards aninhados) */}
+      <div className="lg:col-span-6">
+        <Card
+          as="section"
+          title="Estoque da Copa"
+          headerAction={
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={() => setIsPantryModalOpen(true)}
+            >
+              Novo Item
+            </Button>
+          }
+          noPadding
+        >
+          <ul className="divide-y divide-line">
+            {db.pantryItems.map((item) => {
+              const isLowStock = item.currentQuantity < item.minimumThreshold;
+              return (
+                <li
+                  key={item.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-ink">
+                        {item.name}
                       </span>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleAdjustPantryQuantity(item, -1)}
-                          aria-label={`Diminuir 1 ${item.unit} de ${item.name}`}
-                          className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border-2 border-slate-300 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                        >
-                          <Minus className="h-4 w-4" aria-hidden="true" />
-                          <span>-1</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleAdjustPantryQuantity(item, 1)}
-                          aria-label={`Adicionar 1 ${item.unit} de ${item.name}`}
-                          className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border-2 border-primary-700 bg-primary-700 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-primary-800 dark:border-primary-500 dark:bg-primary-600"
-                        >
-                          <Plus className="h-4 w-4" aria-hidden="true" />
-                          <span>+1</span>
-                        </button>
-                      </div>
+                      {isLowStock && <Badge variant="assess">Repor</Badge>}
                     </div>
+                    <p className="text-xs text-ink-muted">
+                      Mínimo: <span className="font-mono tabular-nums">{item.minimumThreshold}</span> {item.unit}
+                    </p>
                   </div>
-                );
-              })}
-            </div>
-          </Card>
-        </div>
 
-        {/* Registro Interno de Doações Recebidas (6 cols) */}
-        <div className="lg:col-span-6">
-          <Card
-            as="section"
-            title="Livro Interno de Doações Recebidas"
-            subtitle="Registre doações financeiras (R$) ou materiais vinculadas opcionalmente a uma pessoa ou anônimas."
-            headerAction={
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustPantryQuantity(item, -1)}
+                      aria-label={`Diminuir ${item.name}`}
+                      title={`Diminuir ${item.name}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-line bg-surface text-ink hover:bg-subtle"
+                    >
+                      <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+
+                    <span className="w-24 text-center text-sm">
+                      <strong className="font-mono font-semibold text-ink tabular-nums">
+                        {item.currentQuantity}
+                      </strong>{' '}
+                      <span className="text-xs text-ink-muted">{item.unit}</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustPantryQuantity(item, 1)}
+                      aria-label={`Aumentar ${item.name}`}
+                      title={`Aumentar ${item.name}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-line bg-surface text-ink hover:bg-subtle"
+                    >
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      </div>
+
+      {/* Registro Interno de Doações (1 único CTA primário na tela + Exportar CSV) */}
+      <div className="lg:col-span-6">
+        <Card
+          as="section"
+          title="Registro Interno de Doações"
+          headerAction={
+            <div className="no-print flex items-center gap-2">
               <Button
                 variant="secondary"
-                leftIcon={<HeartHandshake className="h-4 w-4" />}
+                size="sm"
+                leftIcon={<Download className="h-4 w-4" />}
+                onClick={() => {
+                  exportToCsv({
+                    filename: 'bonsucesso-doacoes',
+                    headers: [
+                      'Data',
+                      'Apoiador(a)',
+                      'Categoria',
+                      'Valor / Quantidade',
+                      'Descrição',
+                    ],
+                    rows: db.internalDonations.map((don) => [
+                      formatDateBR(don.receivedDate),
+                      don.supporterName,
+                      don.category,
+                      don.quantityOrValue,
+                      don.description,
+                    ]),
+                  });
+                  showToast({
+                    variant: 'success',
+                    title: 'Doações exportadas em CSV',
+                  });
+                }}
+              >
+                Exportar CSV
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Plus className="h-4 w-4" />}
                 onClick={() => setIsDonationModalOpen(true)}
               >
                 Registrar Doação
               </Button>
-            }
-          >
-            <div className="space-y-3">
-              {db.internalDonations.map((don) => (
-                <article
-                  key={don.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50 space-y-2"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Badge
-                      variant={don.category === 'financeiro' ? 'secondary' : 'primary'}
-                    >
-                      {don.category === 'financeiro'
-                        ? 'Doação Financeira (R$)'
-                        : don.category === 'alimentacao'
-                        ? 'Alimentação / Merenda'
-                        : 'Material Didático / Apoio'}
-                    </Badge>
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                      Recebido em {formatDateBR(don.receivedDate)}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
-                      {don.supporterName}
-                    </h4>
-                    <span className="text-base font-extrabold text-primary-800 dark:text-primary-300">
-                      {don.quantityOrValue}
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-slate-700 dark:text-slate-300">
-                    {don.description}
-                  </p>
-                </article>
-              ))}
             </div>
-          </Card>
-        </div>
+          }
+          noPadding
+        >
+          <ul className="divide-y divide-line">
+            {db.internalDonations.map((don) => (
+              <li key={don.id} className="px-5 py-3.5 space-y-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-ink">
+                    {don.supporterName}
+                  </span>
+                  <span className="font-mono text-sm font-semibold text-ink tabular-nums">
+                    {don.quantityOrValue}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
+                  <span className="truncate">{don.description}</span>
+                  <span className="font-mono tabular-nums">{formatDateBR(don.receivedDate)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       </div>
 
-      {/* MODAL PARA REGISTRAR DOAÇÃO INTERNA */}
+      {/* Modal: Registrar Doação */}
       <Modal
         isOpen={isDonationModalOpen}
         onClose={() => setIsDonationModalOpen(false)}
         size="lg"
-        title="Registrar Doação Recebida (Controle Interno)"
-        description="Registre apoios financeiros ou materiais para transparência interna da coordenação."
+        title="Registrar Doação"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setIsDonationModalOpen(false)}>
+            <Button variant="secondary" onClick={() => setIsDonationModalOpen(false)}>
               Cancelar
             </Button>
             <Button
@@ -341,81 +336,83 @@ export const CoordinatorOperationsSection: React.FC = () => {
               onClick={handleRegisterDonation}
               leftIcon={<Save className="h-4 w-4" />}
             >
-              Salvar Registro de Doação
+              Salvar
             </Button>
           </>
         }
       >
         <form onSubmit={handleRegisterDonation} className="space-y-4" noValidate>
           {donationError && (
-            <CalloutAlert variant="error" title="Verifique os dados da doação">
+            <CalloutAlert variant="error" title="Verifique os dados">
               {donationError}
             </CalloutAlert>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Segmented Control Suave (sem blocos pretos) */}
+          <div className="grid grid-cols-2 gap-1 rounded-md bg-track p-1">
             <button
               type="button"
               onClick={() => setDonationType('material')}
               aria-pressed={donationType === 'material'}
-              className={`min-h-[48px] rounded-xl border-2 px-4 py-2.5 text-sm font-extrabold transition-all ${
+              className={cn(
+                'h-9 rounded text-xs font-medium transition-colors',
                 donationType === 'material'
-                  ? 'border-primary-700 bg-primary-700 text-white'
-                  : 'border-slate-300 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-white'
-              }`}
+                  ? 'bg-surface font-semibold text-ink shadow-xs'
+                  : 'text-ink-muted hover:text-ink'
+              )}
             >
-              Doação Material (Alimentos, Papelaria, Equipamentos)
+              Doação Material
             </button>
-
             <button
               type="button"
               onClick={() => setDonationType('financeira')}
               aria-pressed={donationType === 'financeira'}
-              className={`min-h-[48px] rounded-xl border-2 px-4 py-2.5 text-sm font-extrabold transition-all ${
+              className={cn(
+                'h-9 rounded text-xs font-medium transition-colors',
                 donationType === 'financeira'
-                  ? 'border-secondary-700 bg-secondary-700 text-white'
-                  : 'border-slate-300 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-white'
-              }`}
+                  ? 'bg-surface font-semibold text-ink shadow-xs'
+                  : 'text-ink-muted hover:text-ink'
+              )}
             >
-              Doação Financeira (Valor em R$)
+              Doação Financeira (R$)
             </button>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50 space-y-3">
-            <label className="flex items-center gap-2.5 cursor-pointer">
+          <div className="space-y-3 rounded-md bg-subtle p-4">
+            <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={isAnonymousDonor}
                 onChange={(e) => setIsAnonymousDonor(e.target.checked)}
-                className="h-5 w-5 rounded accent-primary-700"
+                className="h-4 w-4 rounded"
               />
-              <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-                Registrar como Doador(a) Anônimo(a)
+              <span className="text-sm font-medium text-ink">
+                Doador(a) Anônimo(a)
               </span>
             </label>
 
             {!isAnonymousDonor && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-1">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Select
-                  label="Vincular a uma Pessoa Cadastrada (Opcional)"
+                  label="Pessoa Cadastrada (Opcional)"
                   value={selectedSupporterPersonId}
                   onChange={(e) => setSelectedSupporterPersonId(e.target.value)}
                   options={[
-                    { value: '', label: 'Não vincular (Digitar comércio ou apoiador externo)' },
+                    { value: '', label: 'Apoiador externo / comércio' },
                     ...db.persons.map((p) => ({
                       value: p.id,
-                      label: `${getDisplayName(p)} (CPF: ${p.cpf})`,
+                      label: getDisplayName(p),
                     })),
                   ]}
                 />
 
                 {!selectedSupporterPersonId && (
                   <Input
-                    label="Nome do Apoiador ou Comércio Local"
+                    label="Nome do Apoiador"
                     required
                     value={customSupporterName}
                     onChange={(e) => setCustomSupporterName(e.target.value)}
-                    placeholder="Ex: Padaria Estrela de Bonsucesso"
+                    placeholder="Ex: Padaria Estrela"
                   />
                 )}
               </div>
@@ -425,18 +422,17 @@ export const CoordinatorOperationsSection: React.FC = () => {
           {donationType === 'financeira' ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
-                label="Valor Doado em Reais (R$)"
+                label="Valor (R$)"
                 required
                 type="number"
                 min={1}
                 step="0.01"
                 value={amountBrlText}
                 onChange={(e) => setAmountBrlText(e.target.value)}
-                placeholder="Ex: 250.00"
+                placeholder="250.00"
               />
-
               <Input
-                label="Data do Recebimento"
+                label="Data"
                 type="date"
                 required
                 value={donationDate}
@@ -447,20 +443,19 @@ export const CoordinatorOperationsSection: React.FC = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Select
-                  label="Categoria do Material"
+                  label="Categoria"
                   value={donationCategory}
                   onChange={(e) =>
                     setDonationCategory(e.target.value as InternalDonation['category'])
                   }
                   options={[
-                    { value: 'alimentacao', label: 'Alimentação / Merenda da Copa' },
-                    { value: 'material_didatico', label: 'Material Didático / Papelaria' },
-                    { value: 'equipamentos', label: 'Equipamentos / Mobiliário' },
+                    { value: 'alimentacao', label: 'Alimentação / Copa' },
+                    { value: 'material_didatico', label: 'Material Didático' },
+                    { value: 'equipamentos', label: 'Equipamentos' },
                   ]}
                 />
-
                 <Input
-                  label="Data do Recebimento"
+                  label="Data"
                   type="date"
                   required
                   value={donationDate}
@@ -470,13 +465,12 @@ export const CoordinatorOperationsSection: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Input
-                  label="Item Doado"
+                  label="Item"
                   required
                   value={itemNameText}
                   onChange={(e) => setItemNameText(e.target.value)}
-                  placeholder="Ex: Café em pó 500g"
+                  placeholder="Café 500g"
                 />
-
                 <Input
                   label="Quantidade"
                   type="number"
@@ -485,37 +479,34 @@ export const CoordinatorOperationsSection: React.FC = () => {
                   value={itemQuantityText}
                   onChange={(e) => setItemQuantityText(e.target.value)}
                 />
-
                 <Input
                   label="Unidade"
                   required
                   value={itemUnitText}
                   onChange={(e) => setItemUnitText(e.target.value)}
-                  placeholder="Ex: pacotes, resmas, caixas"
+                  placeholder="pacotes"
                 />
               </div>
             </div>
           )}
 
           <Input
-            label="Observação / Destinação da Doação"
+            label="Observação"
             optionalText="Opcional"
             value={donationDescription}
             onChange={(e) => setDonationDescription(e.target.value)}
-            placeholder="Ex: Destinado ao lanche do 4º Simulado Comunitário de sábado."
           />
         </form>
       </Modal>
 
-      {/* MODAL PARA ADICIONAR NOVO ITEM NA COPA */}
+      {/* Modal: Novo Item na Copa */}
       <Modal
         isOpen={isPantryModalOpen}
         onClose={() => setIsPantryModalOpen(false)}
-        title="Cadastrar Novo Suprimento da Copa"
-        description="Adicione um item de lanche, bebida ou apoio para acompanhamento de estoque mínimo."
+        title="Novo Item da Copa"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setIsPantryModalOpen(false)}>
+            <Button variant="secondary" onClick={() => setIsPantryModalOpen(false)}>
               Cancelar
             </Button>
             <Button
@@ -523,30 +514,29 @@ export const CoordinatorOperationsSection: React.FC = () => {
               onClick={handleCreatePantryItem}
               leftIcon={<CheckCircle2 className="h-4 w-4" />}
             >
-              Adicionar à Copa
+              Salvar
             </Button>
           </>
         }
       >
         <form onSubmit={handleCreatePantryItem} className="space-y-4">
           <Input
-            label="Nome do Item"
+            label="Item"
             required
             value={newPantryName}
             onChange={(e) => setNewPantryName(e.target.value)}
-            placeholder="Ex: Achocolatado em Pó (Pacote 400g)"
+            placeholder="Ex: Achocolatado 400g"
           />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Input
-              label="Quantidade Atual"
+              label="Quantidade"
               type="number"
               min={0}
               required
               value={newPantryQty}
               onChange={(e) => setNewPantryQty(e.target.value)}
             />
-
             <Input
               label="Estoque Mínimo"
               type="number"
@@ -555,13 +545,11 @@ export const CoordinatorOperationsSection: React.FC = () => {
               value={newPantryMin}
               onChange={(e) => setNewPantryMin(e.target.value)}
             />
-
             <Input
               label="Unidade"
               required
               value={newPantryUnit}
               onChange={(e) => setNewPantryUnit(e.target.value)}
-              placeholder="pacotes, caixas..."
             />
           </div>
 
@@ -573,9 +561,9 @@ export const CoordinatorOperationsSection: React.FC = () => {
             }
             options={[
               { value: 'lanche', label: 'Lanche / Alimento' },
-              { value: 'bebida', label: 'Bebida (Café, Leite, Suco)' },
-              { value: 'descartavel', label: 'Copos / Guardanapos' },
-              { value: 'limpeza', label: 'Limpeza da Copa' },
+              { value: 'bebida', label: 'Bebida' },
+              { value: 'descartavel', label: 'Descartáveis' },
+              { value: 'limpeza', label: 'Limpeza' },
             ]}
           />
         </form>

@@ -18,6 +18,7 @@ import {
   Card,
   EmptyState,
 } from '../../components/ui';
+import { useMockDatabase } from '../../contexts/MockDatabaseContext';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateBR } from '../../utils/formatters';
 import { STUDENT_ANNOUNCEMENTS_FEED, StudentAnnouncement } from './studentData';
@@ -40,14 +41,67 @@ const CATEGORY_FILTER_OPTIONS: Array<{ value: EventCategoryFilter; label: string
 ];
 
 export const StudentEventsPage: React.FC = () => {
+  const { db } = useMockDatabase();
   const { showToast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<EventCategoryFilter>('todos');
   const [readIds, setReadIds] = useState<string[]>([]);
 
+  // Combina os eventos criados/editados no Calendário Institucional da Coordenação (db.calendarEvents) com o feed de comunicados
+  const combinedFeed = useMemo<StudentAnnouncement[]>(() => {
+    const fromCoordinatorEvents: StudentAnnouncement[] = db.calendarEvents.map((evt) => {
+      const mappedCategory: StudentAnnouncement['category'] =
+        evt.category === 'simulado'
+          ? 'simulado'
+          : evt.category === 'aula_especial'
+          ? 'aula_especial'
+          : evt.category === 'visita_pedagogica'
+          ? 'visita_pedagogica'
+          : evt.category === 'feriado'
+          ? 'feriado'
+          : 'comunicado';
+
+      const mappedLabel =
+        evt.category === 'simulado'
+          ? 'Simulado ENEM'
+          : evt.category === 'aula_especial'
+          ? 'Aulão Especial'
+          : evt.category === 'visita_pedagogica'
+          ? 'Visita Pedagógica'
+          : evt.category === 'feriado'
+          ? 'Feriado / Atividade Cultural'
+          : 'Calendário da Coordenação';
+
+      return {
+        id: `coord-evt-${evt.id}`,
+        title: evt.title,
+        summary: evt.description,
+        date: evt.date,
+        author: 'Coordenação Pedagógica Bonsucesso',
+        category: mappedCategory,
+        categoryLabel: mappedLabel,
+        location: evt.location,
+        timeRange: evt.timeRange,
+        isNew: true,
+      };
+    });
+
+    // Evita duplicar títulos idênticos do seed inicial
+    const coordTitles = new Set(
+      fromCoordinatorEvents.map((e) => e.title.trim().toLowerCase())
+    );
+    const nonDuplicateStatic = STUDENT_ANNOUNCEMENTS_FEED.filter(
+      (s) => !coordTitles.has(s.title.trim().toLowerCase())
+    );
+
+    return [...fromCoordinatorEvents, ...nonDuplicateStatic].sort((a, b) =>
+      b.date.localeCompare(a.date)
+    );
+  }, [db.calendarEvents]);
+
   const filteredFeed = useMemo(() => {
-    if (selectedCategory === 'todos') return STUDENT_ANNOUNCEMENTS_FEED;
-    return STUDENT_ANNOUNCEMENTS_FEED.filter((item) => item.category === selectedCategory);
-  }, [selectedCategory]);
+    if (selectedCategory === 'todos') return combinedFeed;
+    return combinedFeed.filter((item) => item.category === selectedCategory);
+  }, [selectedCategory, combinedFeed]);
 
   const getCategoryBadgeVariant = (
     category: StudentAnnouncement['category']

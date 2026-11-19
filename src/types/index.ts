@@ -105,18 +105,11 @@ export interface ClassRoom {
  */
 export interface Subject {
   id: string;
-  name:
-    | 'Matemática'
-    | 'Redação'
-    | 'Português'
-    | 'História'
-    | 'Geografia'
-    | 'Física'
-    | 'Química'
-    | 'Biologia';
+  name: string; // Ex: Matemática, Redação, Português, História, Geografia, Física, Química, Biologia
   area: EnemArea;
   workloadHours: number;
   colorTag: string;
+  status?: PersonStatus; // 'active' | 'inactive' (padrão 'active')
 }
 
 /**
@@ -228,7 +221,10 @@ export interface Grade {
 export type CalendarEventCategory =
   | 'simulado'
   | 'aula_especial'
+  | 'reuniao_pedagogica'
   | 'reuniao_responsaveis'
+  | 'visita_pedagogica'
+  | 'feriado'
   | 'prazo_enem'
   | 'comunidade';
 

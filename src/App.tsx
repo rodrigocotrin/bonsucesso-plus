@@ -6,9 +6,14 @@ import { SessionProvider, useSession } from './contexts/SessionContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { LoginPage, PrivateRoute } from './features/auth';
 import {
+  CoordinatorCalendarPage,
+  CoordinatorClassesPage,
   CoordinatorDashboardPage,
+  CoordinatorEnrollmentsPage,
   CoordinatorGuardiansPage,
+  CoordinatorSchedulePage,
   CoordinatorStudentsPage,
+  CoordinatorSubjectsPage,
   CoordinatorTeachersPage,
 } from './features/coordinator';
 import {
@@ -35,7 +40,6 @@ import { AppShellLayout } from './layouts/AppShellLayout';
 import { BaseLayout } from './layouts/BaseLayout';
 import { DesignSystemPage } from './pages/DesignSystemPage';
 import { MyDataPage } from './pages/MyDataPage';
-import { RoleRoutePlaceholder } from './pages/RoleRoutePlaceholder';
 import { SettingsPage } from './pages/SettingsPage';
 import { getDefaultRouteForRole } from './utils/formatters';
 
@@ -284,7 +288,7 @@ export const App: React.FC = () => {
                 />
 
                 {/* =========================================================
-                    ROTAS DO PERFIL COORDENADOR (Etapa 6 Parte 1 — Dashboard e Gestão de Pessoas)
+                    ROTAS DO PERFIL COORDENADOR (Etapa 6 Partes 1 e 2 — 100% Completo)
                    ========================================================= */}
                 <Route
                   path="/coordenacao"
@@ -326,28 +330,42 @@ export const App: React.FC = () => {
                     </PrivateRoute>
                   }
                 />
-
-                {/* Rotas da Coordenação reservadas para a Parte 2 */}
                 <Route
-                  path="/coordenacao/turmas"
+                  path="/coordenacao/disciplinas"
                   element={
                     <PrivateRoute allowedRoles={['coordinator']}>
                       <AppShellLayout>
-                        <RoleRoutePlaceholder
-                          title="Turmas, Grade e Períodos"
-                          description="Gestão do 2º semestre de 2026, alocação de disciplinas e links do Classroom."
-                          sectionCode="CRD-CLASSES"
-                        />
+                        <CoordinatorSubjectsPage />
                       </AppShellLayout>
                     </PrivateRoute>
                   }
                 />
                 <Route
-                  path="/coordenacao/copa-doacoes"
+                  path="/coordenacao/turmas"
                   element={
                     <PrivateRoute allowedRoles={['coordinator']}>
                       <AppShellLayout>
-                        <CoordinatorDashboardPage />
+                        <CoordinatorClassesPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/matriculas"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <CoordinatorEnrollmentsPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/grade-horaria"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <CoordinatorSchedulePage />
                       </AppShellLayout>
                     </PrivateRoute>
                   }
@@ -357,11 +375,7 @@ export const App: React.FC = () => {
                   element={
                     <PrivateRoute allowedRoles={['coordinator']}>
                       <AppShellLayout>
-                        <RoleRoutePlaceholder
-                          title="Calendário Comunitário"
-                          description="Organização de simulados, rodas de conversa com famílias e eventos."
-                          sectionCode="CRD-CALENDAR"
-                        />
+                        <CoordinatorCalendarPage />
                       </AppShellLayout>
                     </PrivateRoute>
                   }

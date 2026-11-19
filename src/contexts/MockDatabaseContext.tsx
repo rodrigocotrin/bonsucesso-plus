@@ -3,6 +3,8 @@ import {
   Assessment,
   Attendance,
   CalendarEvent,
+  ClassRoom,
+  ClassSubject,
   Enrollment,
   Grade,
   InternalDonation,
@@ -12,6 +14,7 @@ import {
   Person,
   PersonStatus,
   Responsibility,
+  Subject,
   UserAccount,
 } from '../types';
 import { INITIAL_MOCK_DATABASE } from '../mocks/initialDatabase';
@@ -29,6 +32,10 @@ interface MockDatabaseContextValue {
   addResponsibility: (responsibility: Responsibility) => void;
   updateResponsibility: (responsibility: Responsibility) => void;
   removeResponsibility: (responsibilityId: string) => void;
+  addSubject: (subject: Subject) => void;
+  updateSubject: (subject: Subject) => void;
+  addClassRoomWithAssignments: (classRoom: ClassRoom, assignments: ClassSubject[]) => void;
+  updateClassRoomWithAssignments: (classRoom: ClassRoom, assignments: ClassSubject[]) => void;
   recordAttendance: (attendance: Attendance) => void;
   recordAttendanceBatch: (attendances: Attendance[], markLessonCompletedId?: string) => void;
   addGrade: (grade: Grade) => void;
@@ -37,6 +44,7 @@ interface MockDatabaseContextValue {
   addLesson: (lesson: Lesson) => void;
   updateLesson: (lesson: Lesson) => void;
   addCalendarEvent: (event: CalendarEvent) => void;
+  updateCalendarEvent: (event: CalendarEvent) => void;
   addEnrollment: (enrollment: Enrollment) => void;
   updateEnrollment: (enrollment: Enrollment) => void;
   addInternalDonation: (donation: InternalDonation) => void;
@@ -185,6 +193,45 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }));
   }, []);
 
+  const addSubject = useCallback((subject: Subject) => {
+    setDb((prev) => ({
+      ...prev,
+      subjects: [...prev.subjects, subject],
+    }));
+  }, []);
+
+  const updateSubject = useCallback((subject: Subject) => {
+    setDb((prev) => ({
+      ...prev,
+      subjects: prev.subjects.map((s) => (s.id === subject.id ? subject : s)),
+    }));
+  }, []);
+
+  const addClassRoomWithAssignments = useCallback(
+    (classRoom: ClassRoom, assignments: ClassSubject[]) => {
+      setDb((prev) => ({
+        ...prev,
+        classRooms: [...prev.classRooms, classRoom],
+        classSubjects: [...prev.classSubjects, ...assignments],
+      }));
+    },
+    []
+  );
+
+  const updateClassRoomWithAssignments = useCallback(
+    (classRoom: ClassRoom, assignments: ClassSubject[]) => {
+      setDb((prev) => ({
+        ...prev,
+        classRooms: prev.classRooms.map((c) => (c.id === classRoom.id ? classRoom : c)),
+        classSubjects: [
+          ...prev.classSubjects.filter((cs) => cs.classRoomId !== classRoom.id),
+          ...assignments,
+        ],
+      }));
+    },
+    []
+  );
+
   const recordAttendance = useCallback((attendance: Attendance) => {
     setDb((prev) => {
       const exists = prev.attendances.some((a) => a.id === attendance.id);
@@ -271,7 +318,14 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const addCalendarEvent = useCallback((event: CalendarEvent) => {
     setDb((prev) => ({
       ...prev,
-      calendarEvents: [...prev.calendarEvents, event],
+      calendarEvents: [event, ...prev.calendarEvents],
+    }));
+  }, []);
+
+  const updateCalendarEvent = useCallback((event: CalendarEvent) => {
+    setDb((prev) => ({
+      ...prev,
+      calendarEvents: prev.calendarEvents.map((e) => (e.id === event.id ? event : e)),
     }));
   }, []);
 
@@ -328,6 +382,10 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
         addResponsibility,
         updateResponsibility,
         removeResponsibility,
+        addSubject,
+        updateSubject,
+        addClassRoomWithAssignments,
+        updateClassRoomWithAssignments,
         recordAttendance,
         recordAttendanceBatch,
         addGrade,
@@ -336,6 +394,7 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
         addLesson,
         updateLesson,
         addCalendarEvent,
+        updateCalendarEvent,
         addEnrollment,
         updateEnrollment,
         addInternalDonation,

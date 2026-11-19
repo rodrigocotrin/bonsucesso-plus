@@ -46,10 +46,57 @@ export const GuardianNoticesPage: React.FC = () => {
     return db.classRooms.find((c) => c.id === enrollment?.classRoomId) ?? db.classRooms[0];
   }, [db.enrollments, db.classRooms, student]);
 
+  // Combina os eventos do Calendário Institucional da Coordenação (db.calendarEvents) com os avisos das famílias
+  const combinedNotices = useMemo<GuardianNoticeItem[]>(() => {
+    const fromCoordinator: GuardianNoticeItem[] = db.calendarEvents.map((evt) => {
+      const mappedCategory: GuardianNoticeItem['category'] =
+        evt.category === 'reuniao_responsaveis'
+          ? 'reuniao_familia'
+          : evt.category === 'simulado'
+          ? 'simulado_presencial'
+          : evt.category === 'feriado'
+          ? 'feriado'
+          : 'comunicado_turma';
+
+      const mappedLabel =
+        evt.category === 'reuniao_responsaveis'
+          ? 'Encontro com as Famílias'
+          : evt.category === 'simulado'
+          ? 'Simulado Presencial de Sábado'
+          : evt.category === 'feriado'
+          ? 'Aviso de Feriado'
+          : 'Comunicado da Coordenação';
+
+      return {
+        id: `coord-grd-${evt.id}`,
+        title: evt.title,
+        plainExplanation: evt.description,
+        date: evt.date,
+        timeRange: evt.timeRange,
+        location: evt.location,
+        category: mappedCategory,
+        categoryLabel: mappedLabel,
+        targetClassRoomId: 'all',
+        isHighlighted: true,
+      };
+    });
+
+    const coordTitles = new Set(
+      fromCoordinator.map((e) => e.title.trim().toLowerCase())
+    );
+    const nonDuplicateStatic = GUARDIAN_NOTICES_AND_MEETINGS.filter(
+      (s) => !coordTitles.has(s.title.trim().toLowerCase())
+    );
+
+    return [...fromCoordinator, ...nonDuplicateStatic].sort((a, b) =>
+      b.date.localeCompare(a.date)
+    );
+  }, [db.calendarEvents]);
+
   const filteredNotices = useMemo(() => {
-    if (filter === 'todos') return GUARDIAN_NOTICES_AND_MEETINGS;
-    return GUARDIAN_NOTICES_AND_MEETINGS.filter((item) => item.category === filter);
-  }, [filter]);
+    if (filter === 'todos') return combinedNotices;
+    return combinedNotices.filter((item) => item.category === filter);
+  }, [filter, combinedNotices]);
 
   const getBadgeVariant = (category: GuardianNoticeItem['category']) => {
     switch (category) {

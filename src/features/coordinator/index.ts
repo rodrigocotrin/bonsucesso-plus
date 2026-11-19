@@ -2,3 +2,8 @@ export * from './CoordinatorDashboardPage';
 export * from './CoordinatorStudentsPage';
 export * from './CoordinatorTeachersPage';
 export * from './CoordinatorGuardiansPage';
+export * from './CoordinatorSubjectsPage';
+export * from './CoordinatorClassesPage';
+export * from './CoordinatorEnrollmentsPage';
+export * from './CoordinatorSchedulePage';
+export * from './CoordinatorCalendarPage';

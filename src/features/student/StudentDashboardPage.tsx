@@ -544,10 +544,10 @@ export const StudentDashboardPage: React.FC = () => {
                 acompanhar suas notas em <strong>Meu Desempenho</strong>. Para aumentar o tamanho da
                 letra, acesse{' '}
                 <Link
-                  to="/aluno/perfil"
+                  to="/aluno/configuracoes"
                   className="font-bold text-primary-800 underline dark:text-primary-300"
                 >
-                  Meus Dados e Preferências
+                  Configurações
                 </Link>
                 .
               </p>

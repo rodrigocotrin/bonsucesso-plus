@@ -1,2 +1,6 @@
-// Módulo da Visão de Pais / Responsáveis (reservado para a próxima etapa)
-export {};
+export * from './guardianData';
+export * from './GuardianSharedComponents';
+export * from './GuardianSummaryPage';
+export * from './GuardianAttendancePage';
+export * from './GuardianPerformancePage';
+export * from './GuardianNoticesPage';

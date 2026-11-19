@@ -6,6 +6,12 @@ import { SessionProvider, useSession } from './contexts/SessionContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { LoginPage, PrivateRoute } from './features/auth';
 import {
+  GuardianAttendancePage,
+  GuardianNoticesPage,
+  GuardianPerformancePage,
+  GuardianSummaryPage,
+} from './features/guardian';
+import {
   StudentClassesPage,
   StudentDashboardPage,
   StudentEventsPage,
@@ -16,7 +22,9 @@ import { AppShellLayout } from './layouts/AppShellLayout';
 import { BaseLayout } from './layouts/BaseLayout';
 import { ROLE_NAVIGATION_MENUS } from './layouts/navigationConfig';
 import { DesignSystemPage } from './pages/DesignSystemPage';
+import { MyDataPage } from './pages/MyDataPage';
 import { RoleRoutePlaceholder } from './pages/RoleRoutePlaceholder';
+import { SettingsPage } from './pages/SettingsPage';
 import { UserRole } from './types';
 import { getDefaultRouteForRole } from './utils/formatters';
 
@@ -31,7 +39,7 @@ const RootRedirect: React.FC = () => {
   return <Navigate to={getDefaultRouteForRole(currentAccount.role)} replace />;
 };
 
-const OTHER_ROLES: UserRole[] = ['guardian', 'teacher', 'coordinator'];
+const REMAINING_PLACEHOLDER_ROLES: UserRole[] = ['teacher', 'coordinator'];
 
 export const App: React.FC = () => {
   return (
@@ -112,37 +120,118 @@ export const App: React.FC = () => {
                   element={
                     <PrivateRoute allowedRoles={['student']}>
                       <AppShellLayout>
-                        <RoleRoutePlaceholder
-                          title="Meus Dados e Preferências"
-                          description="Seus dados cadastrais, tamanho da letra e modo de exibição."
-                          sectionCode="STD-PROFILE"
-                        />
+                        <MyDataPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/aluno/configuracoes"
+                  element={
+                    <PrivateRoute allowedRoles={['student']}>
+                      <AppShellLayout>
+                        <SettingsPage />
                       </AppShellLayout>
                     </PrivateRoute>
                   }
                 />
 
                 {/* =========================================================
-                    ROTAS DOS DEMAIS PERFIS (Intactas como Placeholders)
+                    ROTAS DO PERFIL RESPONSÁVEL (Etapa 4 — Implementação Completa)
                    ========================================================= */}
-                {OTHER_ROLES.flatMap((role) =>
-                  ROLE_NAVIGATION_MENUS[role].map((item) => (
-                    <Route
-                      key={item.id}
-                      path={item.path}
-                      element={
-                        <PrivateRoute allowedRoles={[role]}>
-                          <AppShellLayout>
-                            <RoleRoutePlaceholder
-                              title={item.label}
-                              description={item.description}
-                              sectionCode={item.id.toUpperCase()}
-                            />
-                          </AppShellLayout>
-                        </PrivateRoute>
-                      }
-                    />
-                  ))
+                <Route
+                  path="/responsavel"
+                  element={
+                    <PrivateRoute allowedRoles={['guardian']}>
+                      <AppShellLayout>
+                        <GuardianSummaryPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/responsavel/frequencia"
+                  element={
+                    <PrivateRoute allowedRoles={['guardian']}>
+                      <AppShellLayout>
+                        <GuardianAttendancePage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/responsavel/simulados"
+                  element={
+                    <PrivateRoute allowedRoles={['guardian']}>
+                      <AppShellLayout>
+                        <GuardianPerformancePage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/responsavel/calendario"
+                  element={
+                    <PrivateRoute allowedRoles={['guardian']}>
+                      <AppShellLayout>
+                        <GuardianNoticesPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/responsavel/perfil"
+                  element={
+                    <PrivateRoute allowedRoles={['guardian']}>
+                      <AppShellLayout>
+                        <MyDataPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/responsavel/configuracoes"
+                  element={
+                    <PrivateRoute allowedRoles={['guardian']}>
+                      <AppShellLayout>
+                        <SettingsPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+
+                {/* =========================================================
+                    ROTAS DOS DEMAIS PERFIS (Intactas como Placeholders, exceto Meus Dados e Configurações)
+                   ========================================================= */}
+                {REMAINING_PLACEHOLDER_ROLES.flatMap((role) =>
+                  ROLE_NAVIGATION_MENUS[role].map((item) => {
+                    const isProfileRoute = item.path.endsWith('/perfil');
+                    const isSettingsRoute = item.path.endsWith('/configuracoes');
+
+                    return (
+                      <Route
+                        key={item.id}
+                        path={item.path}
+                        element={
+                          <PrivateRoute allowedRoles={[role]}>
+                            <AppShellLayout>
+                              {isProfileRoute ? (
+                                <MyDataPage />
+                              ) : isSettingsRoute ? (
+                                <SettingsPage />
+                              ) : (
+                                <RoleRoutePlaceholder
+                                  title={item.label}
+                                  description={item.description}
+                                  sectionCode={item.id.toUpperCase()}
+                                />
+                              )}
+                            </AppShellLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                    );
+                  })
                 )}
 
                 {/* Redirecionamento padrão */}

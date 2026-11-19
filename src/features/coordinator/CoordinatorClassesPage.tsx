@@ -575,7 +575,7 @@ export const CoordinatorClassesPage: React.FC = () => {
                     />
 
                     <Input
-                      label="Link do Google Sala de Aula (classroomUrl)"
+                      label="Link do Google Sala de Aula da Disciplina"
                       value={assign.classroomUrl}
                       onChange={(e) =>
                         handleUpdateDraftAssignment(idx, {

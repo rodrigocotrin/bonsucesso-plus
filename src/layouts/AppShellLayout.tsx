@@ -158,6 +158,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
             type="button"
             onClick={() => setIsSidebarCollapsed((prev) => !prev)}
             aria-expanded={!isSidebarCollapsed}
+            aria-label={isSidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
             title={isSidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
             className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
@@ -268,6 +269,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
           <button
             type="button"
             onClick={() => setIsResetDialogOpen(true)}
+            aria-label="Resetar dados de demonstração"
             title="Resetar dados de demonstração"
             className={cn(
               'flex w-full min-h-[44px] items-center gap-2.5 rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors',
@@ -282,6 +284,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
           <button
             type="button"
             onClick={() => setIsLogoutDialogOpen(true)}
+            aria-label="Sair da conta"
             title="Sair da conta"
             className={cn(
               'flex w-full min-h-[44px] items-center gap-2.5 rounded-xl border border-danger-500/40 bg-danger-50 px-3.5 py-2 text-base font-bold text-danger-800 hover:bg-danger-100 dark:border-red-800 dark:bg-danger-900/30 dark:text-red-200 dark:hover:bg-danger-900/50 transition-colors',
@@ -372,13 +375,18 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      {/* DRAWER MOBILE (Menu Hambúrguer completo) */}
+      {/* DRAWER MOBILE (Menu Hambúrguer completo, fecha também com Esc) */}
       {isMobileDrawerOpen && (
         <div
           className="fixed inset-0 z-50 lg:hidden flex bg-slate-950/70 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
           aria-label="Menu de navegação"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setIsMobileDrawerOpen(false);
+            }
+          }}
         >
           <div className="relative flex w-full max-w-xs flex-col bg-white dark:bg-slate-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">

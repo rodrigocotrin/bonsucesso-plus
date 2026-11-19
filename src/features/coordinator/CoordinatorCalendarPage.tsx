@@ -5,6 +5,7 @@ import {
   FilePenLine,
   MapPin,
   Plus,
+  RefreshCw,
   Save,
   Sparkles,
   Users,
@@ -15,6 +16,7 @@ import {
   Button,
   CalloutAlert,
   Card,
+  EmptyState,
   Input,
   Modal,
   Select,
@@ -226,63 +228,79 @@ export const CoordinatorCalendarPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Lista de Eventos */}
-      <div className="grid grid-cols-1 gap-4">
-        {filteredEvents.map((evt) => {
-          const meta =
-            EVENT_CATEGORY_META[evt.category] ?? EVENT_CATEGORY_META.comunidade;
+      {/* Lista de Eventos ou EmptyState */}
+      {filteredEvents.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4">
+          {filteredEvents.map((evt) => {
+            const meta =
+              EVENT_CATEGORY_META[evt.category] ?? EVENT_CATEGORY_META.comunidade;
 
-          return (
-            <article
-              key={evt.id}
-              className="rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900 space-y-3"
+            return (
+              <article
+                key={evt.id}
+                className="rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900 space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={meta.badgeVariant}>{meta.label}</Badge>
+                    <Badge variant="neutral" icon={<Users className="h-3.5 w-3.5" />}>
+                      Público: {evt.targetAudience.toUpperCase()}
+                    </Badge>
+                  </div>
+
+                  <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-primary-900 dark:text-primary-300">
+                    <Calendar className="h-4 w-4" aria-hidden="true" />
+                    <span>Data: {formatDateBR(evt.date)}</span>
+                  </span>
+                </div>
+
+                <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                  {evt.title}
+                </h2>
+
+                <p className="text-base text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {evt.description}
+                </p>
+
+                <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                      <span>Horário: {evt.timeRange}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                      <span>Local: {evt.location}</span>
+                    </span>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleOpenEditModal(evt)}
+                    leftIcon={<FilePenLine className="h-4 w-4" />}
+                  >
+                    Editar Evento
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState
+          title="Nenhum evento encontrado nesta categoria"
+          description="Não há eventos cadastrados para o tipo selecionado. Limpe o filtro ou cadastre um novo evento."
+          action={
+            <Button
+              variant="primary"
+              leftIcon={<RefreshCw className="h-4 w-4" />}
+              onClick={() => setCategoryFilter('all')}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={meta.badgeVariant}>{meta.label}</Badge>
-                  <Badge variant="neutral" icon={<Users className="h-3.5 w-3.5" />}>
-                    Público: {evt.targetAudience.toUpperCase()}
-                  </Badge>
-                </div>
-
-                <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-primary-900 dark:text-primary-300">
-                  <Calendar className="h-4 w-4" aria-hidden="true" />
-                  <span>Data: {formatDateBR(evt.date)}</span>
-                </span>
-              </div>
-
-              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                {evt.title}
-              </h2>
-
-              <p className="text-base text-slate-700 dark:text-slate-300 leading-relaxed">
-                {evt.description}
-              </p>
-
-              <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                    <span>Horário: {evt.timeRange}</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
-                    <span>Local: {evt.location}</span>
-                  </span>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  onClick={() => handleOpenEditModal(evt)}
-                  leftIcon={<FilePenLine className="h-4 w-4" />}
-                >
-                  Editar Evento
-                </Button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+              Ver Todos os Eventos
+            </Button>
+          }
+        />
+      )}
 
       {/* MODAL PARA CADASTRAR / EDITAR EVENTO DO CALENDÁRIO */}
       <Modal

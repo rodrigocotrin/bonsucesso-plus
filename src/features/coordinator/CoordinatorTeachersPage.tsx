@@ -25,18 +25,12 @@ import {
 import { useMockDatabase } from '../../contexts/MockDatabaseContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Person, RaceDeclaration, UserAccount } from '../../types';
-import { getDisplayName } from '../../utils/formatters';
+import { getDisplayName, getInitials } from '../../utils/formatters';
 import {
   validateCpfField,
   validateEmailField,
   validatePhoneField,
 } from '../../utils/validators';
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 
 export const CoordinatorTeachersPage: React.FC = () => {
   const { db, addPersonWithAccount, updatePerson, togglePersonStatus } =

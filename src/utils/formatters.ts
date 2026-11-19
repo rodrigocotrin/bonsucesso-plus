@@ -148,6 +148,27 @@ export function formatDateBR(isoDate: string): string {
 }
 
 /**
+ * Extrai até 2 iniciais maiúsculas a partir de um nome completo (DRY).
+ */
+export function getInitials(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return 'IC';
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+/**
+ * Formata valor numérico para moeda brasileira (R$ 0,00).
+ */
+export function formatCurrencyBRL(amount: number): string {
+  return `R$ ${amount.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/**
  * Combina classes CSS condicional de maneira limpa (similar ao clsx).
  */
 export function cn(...classes: Array<string | false | null | undefined>): string {

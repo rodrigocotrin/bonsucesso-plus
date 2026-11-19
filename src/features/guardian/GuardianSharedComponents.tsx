@@ -17,14 +17,8 @@ import {
 import { useSession } from '../../contexts/SessionContext';
 import { useMockDatabase } from '../../contexts/MockDatabaseContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getDisplayName } from '../../utils/formatters';
+import { getDisplayName, getInitials } from '../../utils/formatters';
 import { COORDINATION_SUPPORT_CONTACT } from './guardianData';
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 
 /**
  * 1. Seletor de Estudante Vinculado (no topo de todas as telas do Responsável)

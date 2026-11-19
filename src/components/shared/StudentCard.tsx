@@ -11,6 +11,7 @@ import {
   cn,
   evaluateAttendanceStatus,
   getDisplayName,
+  getInitials,
 } from '../../utils/formatters';
 
 export interface StudentCardProps {
@@ -22,12 +23,6 @@ export interface StudentCardProps {
   onChangePresence: (presence: AttendancePresence) => void;
   onChangeJustification?: (justification: string) => void;
   isHighlightedAsMissing?: boolean;
-}
-
-function getStudentInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 const PRESENCE_OPTIONS: Array<{
@@ -106,7 +101,7 @@ export const StudentCard: React.FC<StudentCardProps> = ({
             )}
             aria-hidden="true"
           >
-            {getStudentInitials(displayName)}
+            {getInitials(displayName)}
           </div>
 
           <div className="min-w-0 space-y-1">

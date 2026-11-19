@@ -16,6 +16,7 @@ import {
   CalloutAlert,
   Card,
   ConfirmDialog,
+  EmptyState,
   Input,
   Modal,
   Select,
@@ -245,7 +246,24 @@ export const CoordinatorSubjectsPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Grade de Cards de Disciplinas */}
+      {/* Grade de Cards de Disciplinas ou EmptyState */}
+      {filteredSubjects.length === 0 && (
+        <EmptyState
+          title="Nenhuma disciplina encontrada para este filtro"
+          description="Altere o filtro de área do ENEM ou de status para visualizar as disciplinas cadastradas."
+          action={
+            <Button
+              variant="primary"
+              onClick={() => {
+                setSelectedAreaFilter('all');
+                setSelectedStatusFilter('all');
+              }}
+            >
+              Mostrar Todas as Disciplinas
+            </Button>
+          }
+        />
+      )}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredSubjects.map(({ subject, associatedTeachers, lessonsInMonthCount }) => {
           const isActive = subject.status === 'active';

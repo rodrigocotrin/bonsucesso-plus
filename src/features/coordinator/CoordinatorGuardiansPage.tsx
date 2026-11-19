@@ -16,6 +16,7 @@ import {
   Button,
   CalloutAlert,
   Card,
+  ConfirmDialog,
   Input,
   Modal,
   Select,
@@ -93,6 +94,12 @@ export const CoordinatorGuardiansPage: React.FC = () => {
     useState<Responsibility['relationship']>('Mãe');
   const [isPrimaryContactToLink, setIsPrimaryContactToLink] = useState(true);
   const [receivesAcademicInfoToLink, setReceivesAcademicInfoToLink] = useState(true);
+
+  // ConfirmDialog para prevenção de erro ao desvincular estudante de um responsável
+  const [unlinkConfirmTarget, setUnlinkConfirmTarget] = useState<{
+    responsibilityId: string;
+    studentName: string;
+  } | null>(null);
 
   const allStudents = useMemo(
     () => db.persons.filter((p) => p.id.startsWith('per-est-')),
@@ -278,13 +285,15 @@ export const CoordinatorGuardiansPage: React.FC = () => {
     });
   };
 
-  const handleUnlinkStudent = (responsibilityId: string, studentName: string) => {
-    removeResponsibility(responsibilityId);
+  const handleConfirmUnlinkStudent = () => {
+    if (!unlinkConfirmTarget) return;
+    removeResponsibility(unlinkConfirmTarget.responsibilityId);
     showToast({
       variant: 'info',
-      title: 'Vínculo removido',
-      description: `${studentName} foi desvinculado(a) deste responsável.`,
+      title: 'Vínculo familiar removido',
+      description: `${unlinkConfirmTarget.studentName} foi desvinculado(a) deste responsável.`,
     });
+    setUnlinkConfirmTarget(null);
   };
 
   const columns = useMemo<Array<DataTableColumn<EnrichedGuardianRow>>>(
@@ -490,7 +499,10 @@ export const CoordinatorGuardiansPage: React.FC = () => {
                         <Button
                           variant="danger"
                           onClick={() =>
-                            handleUnlinkStudent(responsibility.id, studentName)
+                            setUnlinkConfirmTarget({
+                              responsibilityId: responsibility.id,
+                              studentName,
+                            })
                           }
                           leftIcon={<Trash2 className="h-4 w-4" />}
                         >
@@ -685,6 +697,23 @@ export const CoordinatorGuardiansPage: React.FC = () => {
           />
         </form>
       </Modal>
+
+      {/* ConfirmDialog para Desvincular Estudante */}
+      <ConfirmDialog
+        isOpen={Boolean(unlinkConfirmTarget)}
+        onClose={() => setUnlinkConfirmTarget(null)}
+        onConfirm={handleConfirmUnlinkStudent}
+        variant="danger"
+        title={
+          unlinkConfirmTarget
+            ? `Desvincular ${unlinkConfirmTarget.studentName} deste responsável?`
+            : 'Desvincular estudante?'
+        }
+        description="Ao confirmar, este responsável deixará de visualizar a frequência e os simulados deste estudante no Portal da Família."
+        consequenceNote="O cadastro do estudante e do responsável continuam intactos e você poderá vinculá-los novamente a qualquer momento."
+        confirmLabel="Sim, desvincular"
+        cancelLabel="Manter vínculo"
+      />
     </div>
   );
 };

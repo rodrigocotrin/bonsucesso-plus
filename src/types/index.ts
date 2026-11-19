@@ -73,6 +73,7 @@ export interface Responsibility {
   studentPersonId: string;
   relationship: 'Mãe' | 'Pai' | 'Avó/Avô' | 'Tia/Tio' | 'Responsável Legal';
   isPrimaryContact: boolean;
+  receivesAcademicInfo?: boolean;
 }
 
 /**
@@ -247,7 +248,14 @@ export interface CalendarEvent {
  */
 export interface InternalDonation {
   id: string;
-  supporterName: string; // Nome de quem apoiou (pessoa física ou comércio local)
+  supporterName: string; // Nome de quem apoiou (pessoa física, comércio local ou "Doador Anônimo")
+  supporterPersonId?: string; // Vínculo opcional a uma Person cadastrada
+  isAnonymous?: boolean;
+  donationType?: 'financeira' | 'material';
+  amountBrl?: number; // Valor em R$ quando financeira
+  itemName?: string; // Nome do item quando material
+  itemQuantity?: number;
+  itemUnit?: string;
   category: 'alimentacao' | 'material_didatico' | 'financeiro' | 'equipamentos';
   description: string;
   quantityOrValue: string;

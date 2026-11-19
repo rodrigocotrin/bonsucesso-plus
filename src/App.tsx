@@ -6,6 +6,12 @@ import { SessionProvider, useSession } from './contexts/SessionContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { LoginPage, PrivateRoute } from './features/auth';
 import {
+  CoordinatorDashboardPage,
+  CoordinatorGuardiansPage,
+  CoordinatorStudentsPage,
+  CoordinatorTeachersPage,
+} from './features/coordinator';
+import {
   GuardianAttendancePage,
   GuardianNoticesPage,
   GuardianPerformancePage,
@@ -27,12 +33,10 @@ import {
 } from './features/teacher';
 import { AppShellLayout } from './layouts/AppShellLayout';
 import { BaseLayout } from './layouts/BaseLayout';
-import { ROLE_NAVIGATION_MENUS } from './layouts/navigationConfig';
 import { DesignSystemPage } from './pages/DesignSystemPage';
 import { MyDataPage } from './pages/MyDataPage';
 import { RoleRoutePlaceholder } from './pages/RoleRoutePlaceholder';
 import { SettingsPage } from './pages/SettingsPage';
-import { UserRole } from './types';
 import { getDefaultRouteForRole } from './utils/formatters';
 
 /**
@@ -45,8 +49,6 @@ const RootRedirect: React.FC = () => {
   }
   return <Navigate to={getDefaultRouteForRole(currentAccount.role)} replace />;
 };
-
-const REMAINING_PLACEHOLDER_ROLES: UserRole[] = ['coordinator'];
 
 export const App: React.FC = () => {
   return (
@@ -282,38 +284,108 @@ export const App: React.FC = () => {
                 />
 
                 {/* =========================================================
-                    ROTAS DO PERFIL COORDENAÇÃO (Placeholders até a próxima etapa)
+                    ROTAS DO PERFIL COORDENADOR (Etapa 6 Parte 1 — Dashboard e Gestão de Pessoas)
                    ========================================================= */}
-                {REMAINING_PLACEHOLDER_ROLES.flatMap((role) =>
-                  ROLE_NAVIGATION_MENUS[role].map((item) => {
-                    const isProfileRoute = item.path.endsWith('/perfil');
-                    const isSettingsRoute = item.path.endsWith('/configuracoes');
+                <Route
+                  path="/coordenacao"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <CoordinatorDashboardPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/alunos"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <CoordinatorStudentsPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/professores"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <CoordinatorTeachersPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/responsaveis"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <CoordinatorGuardiansPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
 
-                    return (
-                      <Route
-                        key={item.id}
-                        path={item.path}
-                        element={
-                          <PrivateRoute allowedRoles={[role]}>
-                            <AppShellLayout>
-                              {isProfileRoute ? (
-                                <MyDataPage />
-                              ) : isSettingsRoute ? (
-                                <SettingsPage />
-                              ) : (
-                                <RoleRoutePlaceholder
-                                  title={item.label}
-                                  description={item.description}
-                                  sectionCode={item.id.toUpperCase()}
-                                />
-                              )}
-                            </AppShellLayout>
-                          </PrivateRoute>
-                        }
-                      />
-                    );
-                  })
-                )}
+                {/* Rotas da Coordenação reservadas para a Parte 2 */}
+                <Route
+                  path="/coordenacao/turmas"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <RoleRoutePlaceholder
+                          title="Turmas, Grade e Períodos"
+                          description="Gestão do 2º semestre de 2026, alocação de disciplinas e links do Classroom."
+                          sectionCode="CRD-CLASSES"
+                        />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/copa-doacoes"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <CoordinatorDashboardPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/calendario"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <RoleRoutePlaceholder
+                          title="Calendário Comunitário"
+                          description="Organização de simulados, rodas de conversa com famílias e eventos."
+                          sectionCode="CRD-CALENDAR"
+                        />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/perfil"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <MyDataPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/coordenacao/configuracoes"
+                  element={
+                    <PrivateRoute allowedRoles={['coordinator']}>
+                      <AppShellLayout>
+                        <SettingsPage />
+                      </AppShellLayout>
+                    </PrivateRoute>
+                  }
+                />
 
                 {/* Redirecionamento padrão */}
                 <Route path="/" element={<RootRedirect />} />

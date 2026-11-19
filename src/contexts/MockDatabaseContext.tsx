@@ -10,6 +10,9 @@ import {
   MockDatabaseState,
   PantryItem,
   Person,
+  PersonStatus,
+  Responsibility,
+  UserAccount,
 } from '../types';
 import { INITIAL_MOCK_DATABASE } from '../mocks/initialDatabase';
 
@@ -20,7 +23,12 @@ interface MockDatabaseContextValue {
   getPersonById: (personId: string) => Person | undefined;
   getStudentsForGuardian: (guardianPersonId: string) => Person[];
   getStudentAttendancePercentage: (studentPersonId: string) => number;
+  addPersonWithAccount: (person: Person, account?: UserAccount, enrollment?: Enrollment, responsibility?: Responsibility) => void;
   updatePerson: (person: Person) => void;
+  togglePersonStatus: (personId: string, nextStatus: PersonStatus, reason?: string) => void;
+  addResponsibility: (responsibility: Responsibility) => void;
+  updateResponsibility: (responsibility: Responsibility) => void;
+  removeResponsibility: (responsibilityId: string) => void;
   recordAttendance: (attendance: Attendance) => void;
   recordAttendanceBatch: (attendances: Attendance[], markLessonCompletedId?: string) => void;
   addGrade: (grade: Grade) => void;
@@ -29,8 +37,10 @@ interface MockDatabaseContextValue {
   addLesson: (lesson: Lesson) => void;
   updateLesson: (lesson: Lesson) => void;
   addCalendarEvent: (event: CalendarEvent) => void;
+  addEnrollment: (enrollment: Enrollment) => void;
   updateEnrollment: (enrollment: Enrollment) => void;
   addInternalDonation: (donation: InternalDonation) => void;
+  addPantryItem: (item: PantryItem) => void;
   updatePantryItem: (item: PantryItem) => void;
   resetDemoData: () => void;
 }
@@ -85,10 +95,93 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [db.attendances]
   );
 
+  const addPersonWithAccount = useCallback(
+    (
+      person: Person,
+      account?: UserAccount,
+      enrollment?: Enrollment,
+      responsibility?: Responsibility
+    ) => {
+      setDb((prev) => ({
+        ...prev,
+        persons: [person, ...prev.persons],
+        accounts: account ? [account, ...prev.accounts] : prev.accounts,
+        enrollments: enrollment ? [enrollment, ...prev.enrollments] : prev.enrollments,
+        responsibilities: responsibility
+          ? [responsibility, ...prev.responsibilities]
+          : prev.responsibilities,
+      }));
+    },
+    []
+  );
+
   const updatePerson = useCallback((updated: Person) => {
     setDb((prev) => ({
       ...prev,
       persons: prev.persons.map((p) => (p.id === updated.id ? updated : p)),
+      accounts: prev.accounts.map((acc) =>
+        acc.personId === updated.id ? { ...acc, status: updated.status } : acc
+      ),
+    }));
+  }, []);
+
+  const togglePersonStatus = useCallback(
+    (personId: string, nextStatus: PersonStatus, reason?: string) => {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      setDb((prev) => ({
+        ...prev,
+        persons: prev.persons.map((p) =>
+          p.id === personId ? { ...p, status: nextStatus } : p
+        ),
+        accounts: prev.accounts.map((acc) =>
+          acc.personId === personId ? { ...acc, status: nextStatus } : acc
+        ),
+        enrollments: prev.enrollments.map((enr) => {
+          if (enr.studentPersonId !== personId) return enr;
+          const nextEnrStatus = nextStatus === 'active' ? 'ativa' : 'trancada';
+          return {
+            ...enr,
+            status: nextEnrStatus,
+            statusHistory: [
+              ...enr.statusHistory,
+              {
+                status: nextEnrStatus,
+                changedAt: todayIso,
+                changedByPersonId: 'per-coord-01',
+                reason:
+                  reason ||
+                  (nextStatus === 'active'
+                    ? 'Cadastro reativado pela coordenação pedagógica.'
+                    : 'Cadastro inativado preservando histórico acadêmico.'),
+              },
+            ],
+          };
+        }),
+      }));
+    },
+    []
+  );
+
+  const addResponsibility = useCallback((responsibility: Responsibility) => {
+    setDb((prev) => ({
+      ...prev,
+      responsibilities: [...prev.responsibilities, responsibility],
+    }));
+  }, []);
+
+  const updateResponsibility = useCallback((responsibility: Responsibility) => {
+    setDb((prev) => ({
+      ...prev,
+      responsibilities: prev.responsibilities.map((r) =>
+        r.id === responsibility.id ? responsibility : r
+      ),
+    }));
+  }, []);
+
+  const removeResponsibility = useCallback((responsibilityId: string) => {
+    setDb((prev) => ({
+      ...prev,
+      responsibilities: prev.responsibilities.filter((r) => r.id !== responsibilityId),
     }));
   }, []);
 
@@ -182,6 +275,13 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }));
   }, []);
 
+  const addEnrollment = useCallback((enrollment: Enrollment) => {
+    setDb((prev) => ({
+      ...prev,
+      enrollments: [enrollment, ...prev.enrollments],
+    }));
+  }, []);
+
   const updateEnrollment = useCallback((enrollment: Enrollment) => {
     setDb((prev) => ({
       ...prev,
@@ -193,6 +293,13 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setDb((prev) => ({
       ...prev,
       internalDonations: [donation, ...prev.internalDonations],
+    }));
+  }, []);
+
+  const addPantryItem = useCallback((item: PantryItem) => {
+    setDb((prev) => ({
+      ...prev,
+      pantryItems: [item, ...prev.pantryItems],
     }));
   }, []);
 
@@ -215,7 +322,12 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
         getPersonById,
         getStudentsForGuardian,
         getStudentAttendancePercentage,
+        addPersonWithAccount,
         updatePerson,
+        togglePersonStatus,
+        addResponsibility,
+        updateResponsibility,
+        removeResponsibility,
         recordAttendance,
         recordAttendanceBatch,
         addGrade,
@@ -224,8 +336,10 @@ export const MockDatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ 
         addLesson,
         updateLesson,
         addCalendarEvent,
+        addEnrollment,
         updateEnrollment,
         addInternalDonation,
+        addPantryItem,
         updatePantryItem,
         resetDemoData,
       }}

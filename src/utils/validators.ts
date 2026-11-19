@@ -113,3 +113,98 @@ export function validateGradeScore(
     numericValue: Math.round(parsed * 10) / 10,
   };
 }
+
+/**
+ * Calcula a idade completa em anos a partir de uma data ISO YYYY-MM-DD.
+ */
+export function calculateAgeYears(birthDateIso: string, referenceDate = new Date('2026-11-19')): number {
+  if (!birthDateIso) return 18;
+  const parts = birthDateIso.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return 18;
+  const [year, month, day] = parts;
+  let age = referenceDate.getFullYear() - year;
+  const monthDiff = referenceDate.getMonth() + 1 - month;
+  if (monthDiff < 0 || (monthDiff === 0 && referenceDate.getDate() < day)) {
+    age--;
+  }
+  return age;
+}
+
+/**
+ * Valida formato básico de CPF (11 dígitos numéricos) e verifica duplicidade no banco mockado.
+ */
+export function validateCpfField(
+  cpfInput: string,
+  existingPersons: Array<{ id: string; cpf: string }>,
+  editingPersonId?: string | null
+): { isValid: boolean; formatted: string; errorMessage?: string } {
+  const digits = cpfInput.replace(/\D/g, '');
+  if (digits.length !== 11) {
+    return {
+      isValid: false,
+      formatted: cpfInput,
+      errorMessage: 'O CPF deve conter exatamente 11 números (ex: 401.501.601-01).',
+    };
+  }
+
+  const duplicate = existingPersons.find(
+    (p) => p.id !== editingPersonId && p.cpf.replace(/\D/g, '') === digits
+  );
+  if (duplicate) {
+    return {
+      isValid: false,
+      formatted: cpfInput,
+      errorMessage: 'Já existe uma pessoa cadastrada no cursinho com este número de CPF.',
+    };
+  }
+
+  const formatted = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+  return { isValid: true, formatted };
+}
+
+/**
+ * Valida formato de e-mail e verifica duplicidade na base de pessoas.
+ */
+export function validateEmailField(
+  emailInput: string,
+  existingPersons: Array<{ id: string; email: string }>,
+  editingPersonId?: string | null
+): { isValid: boolean; errorMessage?: string } {
+  const trimmed = emailInput.trim().toLowerCase();
+  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    return {
+      isValid: false,
+      errorMessage: 'Informe um endereço de e-mail válido (ex: nome@comunidade.org.br).',
+    };
+  }
+
+  const duplicate = existingPersons.find(
+    (p) => p.id !== editingPersonId && p.email.trim().toLowerCase() === trimmed
+  );
+  if (duplicate) {
+    return {
+      isValid: false,
+      errorMessage: 'Este endereço de e-mail já está vinculado a outra pessoa no sistema.',
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Valida telefone com DDD (mínimo 10 ou 11 dígitos).
+ */
+export function validatePhoneField(phoneInput: string): {
+  isValid: boolean;
+  errorMessage?: string;
+} {
+  const digits = phoneInput.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 11) {
+    return {
+      isValid: false,
+      errorMessage: 'Informe o telefone ou WhatsApp com DDD (10 ou 11 dígitos, ex: (21) 99123-4567).',
+    };
+  }
+  return { isValid: true };
+}
+

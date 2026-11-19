@@ -1,2 +1,4 @@
-// Módulo da Visão da Coordenação Pedagógica (reservado para a próxima etapa)
-export {};
+export * from './CoordinatorDashboardPage';
+export * from './CoordinatorStudentsPage';
+export * from './CoordinatorTeachersPage';
+export * from './CoordinatorGuardiansPage';

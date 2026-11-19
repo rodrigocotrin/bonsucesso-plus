@@ -193,12 +193,16 @@ export const CoordinatorDashboardPage: React.FC = () => {
       />
 
       {/* Cabeçalho enxuto (Regra 2: Título curto em 1 linha + Abas minimalistas sem pills pretas) */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-3">
+      <div className="flex flex-col gap-3 border-b border-line pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h1>{isPerformanceRoute ? 'Desempenho Geral' : 'Painel'}</h1>
 
-        <div className="no-print flex flex-wrap items-center gap-4">
+        <div className="no-print flex min-w-0 max-w-full flex-wrap items-center justify-between gap-3">
           {!isPerformanceRoute && (
-            <div role="tablist" aria-label="Visões do painel" className="-mb-3 flex items-center gap-6">
+            <div
+              role="tablist"
+              aria-label="Visões do painel"
+              className="no-scrollbar -mb-3 flex w-full max-w-full items-center gap-5 overflow-x-auto sm:w-auto"
+            >
             {(
               [
                 { id: 'overview', label: 'Acompanhamento Pedagógico' },
@@ -214,7 +218,7 @@ export const CoordinatorDashboardPage: React.FC = () => {
                   aria-selected={isSelected}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    'relative inline-flex h-10 items-center text-sm transition-colors duration-150',
+                    'relative inline-flex h-10 shrink-0 items-center text-sm transition-colors duration-150',
                     isSelected
                       ? 'font-semibold text-ink'
                       : 'font-medium text-ink-muted hover:text-ink'

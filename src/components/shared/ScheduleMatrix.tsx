@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Clock, User } from 'lucide-react';
 import { Badge, CalloutAlert } from '../ui';
 import {
@@ -18,14 +18,15 @@ export interface ScheduleMatrixProps {
 
 /**
  * Matriz Semanal de Grade Horária (Dias da Semana × Turnos).
- * - Horários em JetBrains Mono (`num` / `tabular-nums`).
- * - Eixo Acadêmico (Azul #1D4ED8) para aulas regulares.
- * - Eixo Crítico (Vermelho #DC2626 / #FEF2F2 / #FECACA) quando há choque de professor ou sala.
+ * - Mobile (< 768px): Seletor de dia da semana (Seg | Ter | Qua | Qui | Sex | Sáb) + lista vertical do dia.
+ * - Desktop (>= 768px): Matriz tabular completa com detecção de conflitos em Vermelho.
  */
 export const ScheduleMatrix: React.FC<ScheduleMatrixProps> = ({
   entries,
   onEntryClick,
 }) => {
+  const [selectedMobileDay, setSelectedMobileDay] = useState<MatrixDayOfWeek>('Seg');
+
   const { conflicts, conflictingEntryIds } = useMemo(
     () => detectScheduleConflicts(entries),
     [entries]
@@ -36,8 +37,17 @@ export const ScheduleMatrix: React.FC<ScheduleMatrixProps> = ({
       .filter((e) => e.dayOfWeek === day && e.shiftSlot === shift)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
+  const mobileDayMeta = MATRIX_DAYS.find((d) => d.key === selectedMobileDay) ?? MATRIX_DAYS[0];
+  const mobileDayEntries = useMemo(
+    () =>
+      entries
+        .filter((e) => e.dayOfWeek === selectedMobileDay)
+        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    [entries, selectedMobileDay]
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 w-full max-w-full space-y-4">
       {conflicts.length > 0 && (
         <CalloutAlert
           variant="error"
@@ -45,7 +55,7 @@ export const ScheduleMatrix: React.FC<ScheduleMatrixProps> = ({
             conflicts.length === 1 ? 'ocorrência' : 'ocorrências'
           })`}
         >
-          <ul className="mt-1 list-inside list-disc space-y-1 text-xs font-medium text-ink">
+          <ul className="mt-1 list-inside list-disc space-y-1 break-words text-xs font-medium text-ink">
             {conflicts.map((conflict) => (
               <li key={conflict.id}>{conflict.description}</li>
             ))}
@@ -53,8 +63,124 @@ export const ScheduleMatrix: React.FC<ScheduleMatrixProps> = ({
         </CalloutAlert>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-line bg-surface">
-        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+      {/* =====================================================================
+          VISÃO MOBILE (< 768px): Seletor Seg–Sáb + Lista Vertical do Dia
+         ===================================================================== */}
+      <div className="space-y-3 md:hidden">
+        <div
+          role="tablist"
+          aria-label="Selecionar dia da semana"
+          className="grid grid-cols-6 gap-1 rounded-md bg-track p-1"
+        >
+          {MATRIX_DAYS.map((day) => {
+            const isSelected = selectedMobileDay === day.key;
+            const dayCount = entries.filter((e) => e.dayOfWeek === day.key).length;
+            const dayHasConflict = entries.some(
+              (e) => e.dayOfWeek === day.key && conflictingEntryIds.has(e.id)
+            );
+
+            return (
+              <button
+                key={day.key}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                onClick={() => setSelectedMobileDay(day.key)}
+                className={cn(
+                  'relative flex h-10 flex-col items-center justify-center rounded text-xs transition-colors duration-150',
+                  isSelected
+                    ? 'bg-surface font-semibold text-ink shadow-xs'
+                    : 'font-medium text-ink-muted hover:text-ink'
+                )}
+              >
+                <span>{day.key}</span>
+                {dayHasConflict ? (
+                  <span
+                    className="mt-0.5 h-1.5 w-1.5 rounded-full bg-critical"
+                    aria-hidden="true"
+                  />
+                ) : dayCount > 0 ? (
+                  <span
+                    className="mt-0.5 h-1 w-1 rounded-full bg-academic"
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="rounded-lg border border-line bg-surface p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-line pb-2.5">
+            <h3 className="text-sm font-semibold text-ink">
+              {mobileDayMeta.fullLabel}
+            </h3>
+            <span className="num text-xs text-ink-muted">
+              {mobileDayEntries.length}{' '}
+              {mobileDayEntries.length === 1 ? 'aula' : 'aulas'}
+            </span>
+          </div>
+
+          {mobileDayEntries.length > 0 ? (
+            <div className="space-y-2.5">
+              {mobileDayEntries.map((entry) => {
+                const isConflict = conflictingEntryIds.has(entry.id);
+                return (
+                  <div
+                    key={entry.id}
+                    onClick={onEntryClick ? () => onEntryClick(entry) : undefined}
+                    className={cn(
+                      'rounded-md border p-3 transition-colors',
+                      onEntryClick && 'cursor-pointer',
+                      isConflict
+                        ? 'border-critical bg-critical-bg text-ink'
+                        : 'border-line bg-paper hover:border-ink'
+                    )}
+                  >
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                      <span className="num inline-flex items-center gap-1.5 text-xs font-semibold text-ink">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-academic" aria-hidden="true" />
+                        <span>
+                          {entry.startTime}–{entry.endTime}
+                        </span>
+                        <span className="font-sans font-normal text-ink-muted">
+                          ({entry.shiftSlot})
+                        </span>
+                      </span>
+
+                      {isConflict && <Badge variant="critical">Choque</Badge>}
+                    </div>
+
+                    <p className="break-words text-sm font-semibold text-ink">
+                      {entry.subjectName}
+                    </p>
+
+                    <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="font-medium text-academic">
+                        {entry.classRoomName}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-ink-muted">
+                        <User className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        <span>{entry.teacherName}</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="py-6 text-center text-xs text-ink-muted">
+              Nenhuma aula alocada para {mobileDayMeta.fullLabel.toLowerCase()}.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* =====================================================================
+          VISÃO DESKTOP (>= 768px): Matriz Tabular Completa
+         ===================================================================== */}
+      <div className="hidden md:block w-full max-w-full overflow-x-auto rounded-lg border border-line bg-surface">
+        <table className="w-full min-w-[820px] border-collapse text-left text-sm">
           <thead>
             <tr className="h-10 border-b border-ink bg-paper">
               <th

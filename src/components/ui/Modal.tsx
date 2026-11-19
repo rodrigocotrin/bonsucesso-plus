@@ -64,7 +64,7 @@ export const Modal: React.FC<ModalProps> = ({
           initial="initial"
           animate="animate"
           exit="exit"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-backdrop backdrop-blur-[2px] p-0 sm:items-center sm:p-6"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-backdrop backdrop-blur-[2px] p-3 sm:items-center sm:p-6"
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) handleRequestClose();
@@ -83,7 +83,7 @@ export const Modal: React.FC<ModalProps> = ({
             aria-describedby={description ? descriptionId : undefined}
             tabIndex={-1}
             className={cn(
-              'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-lg border border-line bg-surface sm:rounded-lg',
+              'relative flex max-h-[90dvh] w-full max-w-full flex-col overflow-hidden rounded-lg border border-line bg-surface',
               SIZE[size]
             )}
           >

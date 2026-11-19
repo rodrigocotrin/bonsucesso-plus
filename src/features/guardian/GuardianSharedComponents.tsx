@@ -87,7 +87,7 @@ export const GuardianStudentSelectorBar: React.FC = () => {
               }
             }}
             className={cn(
-              'relative flex flex-1 min-w-[220px] items-center justify-between gap-3 rounded-md px-3.5 py-2.5 text-left transition-colors duration-150 active:scale-[0.99]',
+              'relative flex flex-1 min-w-0 w-full sm:w-auto sm:min-w-[200px] items-center justify-between gap-3 rounded-md px-3.5 py-2.5 text-left transition-colors duration-150 active:scale-[0.99]',
               isSelected
                 ? 'text-ink'
                 : 'text-ink-muted hover:text-ink'

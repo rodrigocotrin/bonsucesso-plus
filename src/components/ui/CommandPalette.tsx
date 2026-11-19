@@ -492,7 +492,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           initial="initial"
           animate="animate"
           exit="exit"
-          className="fixed inset-0 z-50 flex items-start justify-center bg-backdrop backdrop-blur-[2px] p-4 pt-[10vh]"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden bg-backdrop backdrop-blur-[2px] p-3 pt-[8dvh] sm:p-4 sm:pt-[10dvh]"
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) onClose();
@@ -509,7 +509,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             aria-modal="true"
             aria-labelledby={dialogId}
             onKeyDown={handleKeyDown}
-            className="flex max-h-[76vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-sm"
+            className="flex max-h-[80dvh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-sm"
           >
             {/* Barra de Busca com Ícone e Botão Esc */}
             <div className="flex items-center gap-3 border-b border-line px-4 py-3">

@@ -167,11 +167,11 @@ export const CoordinatorCalendarPage: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Cabeçalho enxuto + Filtro inline alinhado pela base do input (Regra 2 e 5) */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-end">
         <h1>Calendário</h1>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-60">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end">
+          <div className="w-full sm:w-60">
             <Select
               label="Categoria"
               value={categoryFilter}
@@ -190,6 +190,7 @@ export const CoordinatorCalendarPage: React.FC = () => {
 
           <Button
             variant="primary"
+            className="w-full sm:w-auto"
             leftIcon={<Plus className="h-4 w-4" />}
             onClick={handleOpenCreateModal}
           >

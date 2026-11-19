@@ -115,10 +115,10 @@ export const StudentProfileTabsView: React.FC<StudentProfileTabsViewProps> = ({
               {getDisplayName(studentRow.person)}
             </h1>
 
-            <p className="text-xs text-ink-muted">
+            <p className="break-words text-xs text-ink-muted">
               CPF <span className="font-mono">{studentRow.person.cpf}</span> •{' '}
               <span className="font-mono">{studentRow.person.phone}</span> •{' '}
-              {studentRow.person.email}
+              <span className="break-all">{studentRow.person.email}</span>
             </p>
           </div>
 
@@ -150,7 +150,7 @@ export const StudentProfileTabsView: React.FC<StudentProfileTabsViewProps> = ({
         <div
           role="tablist"
           aria-label="Abas da ficha acadêmica"
-          className="flex gap-6 overflow-x-auto border-t border-line px-5"
+          className="no-scrollbar flex w-full max-w-full gap-5 overflow-x-auto border-t border-line px-4 sm:px-5"
         >
           {(
             [

@@ -104,10 +104,10 @@ export const TeacherClassPerformancePage: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Cabeçalho enxuto + Filtro inline alinhado pela base (Regra 2) */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-end">
         <h1>Desempenho</h1>
 
-        <div className="w-64">
+        <div className="w-full sm:w-64">
           <Select
             label="Turma"
             value={selectedClassRoomId}
@@ -189,10 +189,47 @@ export const TeacherClassPerformancePage: React.FC = () => {
       {/* Tabela / Lista Consolidada de Frequência e Notas */}
       <Card
         as="section"
-        title="Quadro Consolidado de Estudantes (Ordenado por Prioridade de Frequência)"
+        title="Quadro Consolidado de Estudantes"
         subtitle="Compare a assiduidade e a média nos simulados de cada estudante."
       >
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        {/* Mobile (< 768px): Cards Verticais Empilhados Limpos */}
+        <div className="space-y-2.5 md:hidden">
+          {consolidatedStudentRows.map((row) => {
+            const isCritical = row.attendanceEval.status === 'critical';
+            return (
+              <div
+                key={row.person.id}
+                className="rounded-lg border border-line bg-subtle p-3.5 space-y-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-semibold text-ink">
+                      {getDisplayName(row.person)}
+                    </p>
+                    <span className="num block text-xs text-ink-muted">
+                      {row.enrollment.enrollmentCode} • {row.classRoomName}
+                    </span>
+                  </div>
+                  <Badge variant={isCritical ? 'danger' : 'success'}>
+                    {row.attendancePct}%
+                  </Badge>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-line pt-2 text-xs">
+                  <span className="text-ink-muted">{row.attendanceEval.label}</span>
+                  <strong className="num font-semibold text-ink">
+                    {row.enemAverage > 0
+                      ? formatEnemScore(row.enemAverage)
+                      : 'Sem simulado'}
+                  </strong>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop (>= 768px): Tabela Consolidada */}
+        <div className="hidden md:block w-full max-w-full overflow-x-auto rounded-lg border border-line">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-100 text-slate-800">
               <tr>

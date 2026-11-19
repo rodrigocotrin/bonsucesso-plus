@@ -146,10 +146,10 @@ export const GuardianAttendancePage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Cabeçalho enxuto alinhado pela base (Regra 2) */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-end">
         <h1>Frequência</h1>
 
-        <div className="w-60">
+        <div className="w-full sm:w-60">
           <Select
             label="Mês"
             value={selectedMonth}

@@ -142,8 +142,18 @@
     text-rendering: optimizeLegibility;
   }
 
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-paper font-sans text-sm leading-relaxed text-ink transition-colors duration-150;
+    @apply min-h-[100dvh] bg-paper font-sans text-sm leading-relaxed text-ink transition-colors duration-150;
   }
 
   h1 {
@@ -227,6 +237,15 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--border-line) transparent;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 
   .pb-safe {

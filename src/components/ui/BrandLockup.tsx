@@ -26,7 +26,7 @@ export const BrandLockup: React.FC<BrandLockupProps> = ({
     size === 'lg' ? 'text-xl' : size === 'sm' ? 'text-base' : 'text-lg';
 
   return (
-    <div className={cn('inline-flex items-center gap-3 select-none', className)}>
+    <div className={cn('inline-flex min-w-0 max-w-full items-center gap-3 select-none', className)}>
       {/* Símbolo Bauhaus 2x2 (4 quadrados de 6px com gap de 2px = 14x14px dentro de moldura técnica) */}
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-line bg-surface"

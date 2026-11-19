@@ -223,13 +223,18 @@ export const StudentPerformancePage: React.FC = () => {
       // Escala de 400 a 1000 para visualização clara das diferenças mantendo referência 0-1000
       const clampedScore = Math.max(0, Math.min(1000, item.grade.score));
       const y = padTop + usableH - (clampedScore / 1000) * usableH;
+      const monthNum = Number(item.assessment.date.split('-')[1] || 1);
+      const monthAbbr =
+        ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][
+          (monthNum - 1) % 12
+        ] ?? 'Mês';
       return {
         x,
         y,
         score: item.grade.score,
         redacao: item.grade.areaScores?.redacao ?? 0,
         title: item.assessment.title,
-        shortLabel: `${idx + 1}º Simulado`,
+        shortLabel: `${idx + 1}º Sim (${monthAbbr})`,
         date: formatDateBR(item.assessment.date),
       };
     });
@@ -240,10 +245,10 @@ export const StudentPerformancePage: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Cabeçalho enxuto + Seletor de Período alinhado pela base (Regra 2) */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-end">
         <h1>Meu Desempenho</h1>
 
-        <div className="w-60">
+        <div className="w-full sm:w-60">
           <Select
             label="Período"
             value={selectedPeriodId}
@@ -365,14 +370,14 @@ export const StudentPerformancePage: React.FC = () => {
           </Badge>
         }
       >
-        <div className="space-y-6">
-          {/* Gráfico SVG Responsivo */}
-          <div className="w-full overflow-x-auto">
+        <div className="min-w-0 max-w-full space-y-6">
+          {/* Gráfico SVG Fluido (100% responsivo sem overflow horizontal) */}
+          <div className="w-full min-w-0 max-w-full overflow-hidden">
             <svg
               viewBox="0 0 640 230"
               role="img"
               aria-label="Gráfico de linha mostrando a evolução das notas nos 3 simulados na escala de 0 a 1000 pontos"
-              className="w-full min-w-[480px] h-auto select-none"
+              className="h-auto w-full max-w-full select-none"
             >
               {/* Linhas horizontais de referência (0, 500, 750, 1000) */}
               {[0, 500, 750, 1000].map((refScore) => {
@@ -472,8 +477,41 @@ export const StudentPerformancePage: React.FC = () => {
             </svg>
           </div>
 
-          {/* Tabela Resumo Acessível do Gráfico (WCAG 2.1) */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          {/* Mobile (< 768px): Cards Verticais Empilhados Limpos */}
+          <div className="space-y-2.5 md:hidden">
+            {studentSimuladosHistory.map(({ assessment, grade }) => (
+              <div
+                key={grade.id}
+                className="rounded-lg border border-line bg-subtle p-3.5 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="break-words text-sm font-semibold text-ink">
+                    {assessment.title}
+                  </p>
+                  <span className="num shrink-0 text-xs text-ink-muted">
+                    {formatDateBR(assessment.date)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                  <div>
+                    <span className="block text-ink-muted">Média Geral</span>
+                    <strong className="num text-sm font-semibold text-ink">
+                      {formatEnemScore(grade.score)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="block text-ink-muted">Redação</span>
+                    <strong className="num text-sm font-semibold text-academic">
+                      {formatEnemScore(grade.areaScores?.redacao ?? 0)}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop (>= 768px): Tabela Resumo Acessível do Gráfico (WCAG 2.1) */}
+          <div className="hidden md:block w-full max-w-full overflow-x-auto rounded-lg border border-line">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">
                 Tabela acessível com as notas de cada simulado realizado

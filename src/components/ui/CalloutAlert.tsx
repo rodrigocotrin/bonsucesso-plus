@@ -46,17 +46,19 @@ export const CalloutAlert: React.FC<CalloutAlertProps> = ({
       )}
     >
       <span className={cn('absolute inset-y-0 left-0 w-1', TONE_FILL[tone])} aria-hidden="true" />
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <Icon className={cn('mt-0.5 h-5 w-5 shrink-0', TONE_TEXT[tone])} aria-hidden="true" />
-        <div className="space-y-1">
-          <p className="text-sm font-semibold leading-snug text-ink">
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="break-words text-sm font-semibold leading-snug text-ink">
             <span className="sr-only">{label} </span>
             {title}
           </p>
-          {children && <div className="text-sm leading-relaxed text-ink">{children}</div>}
+          {children && (
+            <div className="break-words text-sm leading-relaxed text-ink">{children}</div>
+          )}
         </div>
       </div>
-      {action && <div className="shrink-0 sm:self-center">{action}</div>}
+      {action && <div className="min-w-0 max-w-full shrink-0 sm:self-center">{action}</div>}
     </div>
   );
 };

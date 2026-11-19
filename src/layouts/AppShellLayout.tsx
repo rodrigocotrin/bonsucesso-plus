@@ -266,7 +266,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
   ]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-paper text-ink lg:flex-row">
+    <div className="flex min-h-[100dvh] w-full max-w-full flex-col overflow-x-clip bg-paper text-ink lg:flex-row">
       <a
         href="#conteudo-principal-app"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-cta focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-cta-fg"
@@ -280,7 +280,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
       <aside
         aria-label="Navegação principal"
         className={cn(
-          'no-print hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:flex-col border-r border-line bg-surface',
+          'no-print hidden lg:sticky lg:top-0 lg:flex lg:h-[100dvh] lg:shrink-0 lg:flex-col border-r border-line bg-surface',
           isSidebarCollapsed ? 'lg:w-16' : 'lg:w-60'
         )}
       >
@@ -568,26 +568,31 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
       {/* =====================================================================
           COLUNA PRINCIPAL: TOPBAR + BARRA DE CONTEXTO (RESPONSÁVEL) + MAIN
          ===================================================================== */}
-      <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
+      <div className="flex min-w-0 max-w-full flex-1 flex-col">
         {/* TOPBAR (h-14) */}
-        <header className="no-print sticky top-0 z-30 border-b border-line bg-surface">
-          <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
-            {/* Esquerda: Menu Mobile + Breadcrumb */}
-            <div className="flex min-w-0 items-center gap-3">
+        <header className="no-print sticky top-0 z-30 w-full max-w-full border-b border-line bg-surface">
+          <div className="flex h-14 w-full max-w-full items-center justify-between gap-2 px-4 sm:px-6">
+            {/* Esquerda: Menu Mobile + Título Curto (< 768px) / Breadcrumb (>= 768px) */}
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setIsMobileDrawerOpen(true)}
                 aria-label="Abrir menu lateral"
                 title="Abrir menu lateral"
-                className="inline-flex h-10 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all duration-150 ease-out hover:bg-subtle active:scale-[0.98] lg:hidden"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-ink transition-all duration-150 ease-out hover:bg-subtle active:scale-[0.98] lg:hidden"
               >
                 <Menu className="h-4 w-4" aria-hidden="true" />
-                <span>Menu</span>
               </button>
 
-              <nav aria-label="Breadcrumb" className="min-w-0">
+              {/* Mobile (< 768px): Título curto da página atual sem breadcrumb longo */}
+              <span className="truncate text-sm font-semibold text-ink md:hidden">
+                {activeSubTab?.label ?? activeMenuItem?.label ?? 'Bonsucesso+'}
+              </span>
+
+              {/* Desktop/Tablet (>= 768px): Breadcrumb completo */}
+              <nav aria-label="Breadcrumb" className="hidden min-w-0 md:block">
                 <ol className="flex items-center gap-1.5 text-xs text-ink-muted">
-                  <li className="hidden sm:inline truncate">
+                  <li className="truncate">
                     <Link
                       to={getDefaultRouteForRole(role)}
                       className="transition-colors duration-150 hover:text-ink"
@@ -595,7 +600,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
                       {getRoleDisplayLabel(role)}
                     </Link>
                   </li>
-                  <li aria-hidden="true" className="hidden sm:inline">
+                  <li aria-hidden="true">
                     <ChevronRight className="h-3.5 w-3.5 text-ink-muted/60" />
                   </li>
                   <li className="truncate">
@@ -626,14 +631,14 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
             </div>
 
             {/* Direita: Gatilho Command Palette (Ctrl+K) + Seletor de Perfil */}
-            <div className="flex items-center gap-2.5">
-              {/* Gatilho Desktop/Tablet Command Palette */}
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Gatilho Desktop (>= 768px) Command Palette */}
               <button
                 type="button"
                 onClick={() => setIsCommandPaletteOpen(true)}
                 aria-label="Abrir busca rápida e comandos (Ctrl+K)"
                 title="Busca rápida e comandos (Ctrl+K / ⌘K)"
-                className="hidden sm:inline-flex h-9 w-52 items-center justify-between gap-2 rounded-md border border-line bg-search px-3 text-xs text-ink-muted transition-colors duration-150 hover:border-ink/40 hover:text-ink xl:w-64"
+                className="hidden md:inline-flex h-9 w-52 items-center justify-between gap-2 rounded-md border border-line bg-search px-3 text-xs text-ink-muted transition-colors duration-150 hover:border-ink/40 hover:text-ink xl:w-64"
               >
                 <span className="flex items-center gap-2 truncate">
                   <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -644,24 +649,24 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
                 </kbd>
               </button>
 
-              {/* Gatilho Mobile Command Palette (Alvo de toque 44px) */}
+              {/* Gatilho Mobile (< 768px): Botão de Lupa 40px x 40px */}
               <button
                 type="button"
                 onClick={() => setIsCommandPaletteOpen(true)}
                 aria-label="Abrir busca rápida (Ctrl+K)"
                 title="Abrir busca rápida"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-line bg-search text-ink transition-colors duration-150 hover:bg-subtle sm:hidden"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line bg-search text-ink transition-colors duration-150 hover:bg-subtle md:hidden"
               >
                 <Search className="h-4 w-4" aria-hidden="true" />
               </button>
 
-              {/* Seletor de Perfil: Segmented Control com Pílula Deslizante (layoutId) */}
+              {/* Seletor de Perfil: Dropdown compacto no Mobile/Tablet (< 1024px) e Segmented Control no Desktop */}
               <div
                 role="group"
                 aria-label="Alternar perfil"
-                className="flex items-center rounded-md bg-track p-0.5"
+                className="flex shrink-0 items-center rounded-md bg-track p-0.5"
               >
-                <div className="hidden md:flex items-center gap-0.5">
+                <div className="hidden lg:flex items-center gap-0.5">
                   {PROTOTYPE_ROLE_SWITCHER.map((opt) => {
                     const isCurrent = role === opt.role;
                     return (
@@ -695,7 +700,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
                   aria-label="Alternar perfil"
                   value={role}
                   onChange={(e) => handlePrototypeRoleSwitch(e.target.value as UserRole)}
-                  className="h-8 rounded bg-surface px-2 text-xs font-medium text-ink md:hidden"
+                  className="h-9 max-w-[122px] truncate rounded bg-surface px-2 text-xs font-medium text-ink lg:hidden"
                 >
                   {PROTOTYPE_ROLE_SWITCHER.map((opt) => (
                     <option key={opt.role} value={opt.role}>
@@ -707,13 +712,13 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
             </div>
           </div>
 
-          {/* TABS HORIZONTAIS COM SUBLINHADO DESLIZANTE (layoutId) */}
+          {/* TABS HORIZONTAIS COM SUBLINHADO DESLIZANTE (layoutId) — scroll confinado ao trilho */}
           {activeMenuItem?.subTabs && activeMenuItem.subTabs.length > 0 && (
-            <div className="border-t border-line bg-surface px-4 sm:px-6">
+            <div className="w-full max-w-full border-t border-line bg-surface px-4 sm:px-6">
               <div
                 role="tablist"
                 aria-label={`Abas de ${activeMenuItem.label}`}
-                className="mx-auto flex max-w-7xl items-center gap-6 overflow-x-auto"
+                className="no-scrollbar mx-auto flex w-full max-w-7xl items-center gap-5 overflow-x-auto"
               >
                 {activeMenuItem.subTabs.map((tab) => {
                   const isTabActive = location.pathname === tab.path;
@@ -753,20 +758,20 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
             <div
               role="region"
               aria-label="Contexto do estudante acompanhado"
-              className="border-t border-line bg-subtle px-4 py-2 sm:px-6"
+              className="w-full max-w-full border-t border-line bg-subtle px-4 py-2 sm:px-6"
             >
-              <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2.5">
+              <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-2">
                   <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-progress-bg text-progress">
                     <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
                     <span className="text-ink-muted">Acompanhando:</span>
-                    <strong className="font-semibold text-ink">
+                    <strong className="truncate font-semibold text-ink">
                       {guardianStudentContext.displayName}
                     </strong>
                     <span className="text-ink-muted">•</span>
-                    <span className="font-medium text-ink">
+                    <span className="truncate font-medium text-ink">
                       {guardianStudentContext.classRoomName}
                     </span>
                     <span className="hidden sm:inline text-ink-muted">
@@ -776,18 +781,18 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
                 </div>
 
                 {linkedStudentsForGuardian.length > 0 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <label
                       htmlFor="guardian-context-student-select"
-                      className="text-xs font-medium text-ink-muted whitespace-nowrap"
+                      className="shrink-0 text-xs font-medium text-ink-muted"
                     >
-                      Alternar aluno:
+                      Alternar:
                     </label>
                     <select
                       id="guardian-context-student-select"
                       value={selectedStudentForGuardian?.id ?? ''}
                       onChange={(e) => setSelectedStudentIdForGuardian(e.target.value)}
-                      className="h-8 rounded-md border border-line bg-surface px-2.5 text-xs font-semibold text-ink transition-colors duration-150 focus:border-ink"
+                      className="h-8 min-w-0 flex-1 sm:flex-initial sm:max-w-[240px] truncate rounded-md border border-line bg-surface px-2.5 text-xs font-semibold text-ink transition-colors duration-150 focus:border-ink"
                     >
                       {linkedStudentsForGuardian.map((student) => {
                         const enr = db.enrollments.find(
@@ -811,7 +816,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
         {/* CONTEÚDO PRINCIPAL COM TRANSIÇÃO ULTRA-RÁPIDA (160ms/180ms) + BrandLoader */}
         <main
           id="conteudo-principal-app"
-          className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8"
+          className="mx-auto w-full max-w-7xl min-w-0 flex-1 overflow-x-clip px-4 pt-5 pb-24 sm:px-6 md:pb-8 lg:px-8"
         >
           {isSwitchingRole ? (
             <BrandLoader variant="fullscreen" label="Alternando perfil..." />
@@ -822,6 +827,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
                   key={`${location.pathname}-${
                     role === 'guardian' ? selectedStudentForGuardian?.id ?? '' : ''
                   }`}
+                  className="min-w-0 w-full max-w-full"
                   initial={{ opacity: 0, y: 4 }}
                   animate={{
                     opacity: 1,
@@ -1054,7 +1060,7 @@ export const AppShellLayout: React.FC<AppShellLayoutProps> = ({ children }) => {
             initial="initial"
             animate="animate"
             exit="exit"
-            className="no-print fixed inset-0 z-50 flex bg-backdrop backdrop-blur-[2px] lg:hidden"
+            className="no-print fixed inset-0 z-50 flex overflow-hidden bg-backdrop backdrop-blur-[2px] lg:hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Menu de navegação"

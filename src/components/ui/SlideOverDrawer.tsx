@@ -80,7 +80,7 @@ export const SlideOverDrawer: React.FC<SlideOverDrawerProps> = ({
           initial="initial"
           animate="animate"
           exit="exit"
-          className="fixed inset-0 z-50 flex justify-end bg-backdrop backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-backdrop backdrop-blur-[2px]"
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) handleRequestClose();
@@ -98,22 +98,22 @@ export const SlideOverDrawer: React.FC<SlideOverDrawerProps> = ({
             aria-labelledby={titleId}
             tabIndex={-1}
             className={cn(
-              'relative flex h-full w-full flex-col border-l border-line bg-surface',
+              'relative flex h-full max-h-[100dvh] w-full max-w-full flex-col overflow-hidden border-l border-line bg-surface',
               WIDTH_CLASSES[width]
             )}
           >
             {/* Cabeçalho */}
-            <div className="border-b border-line px-6 py-4">
+            <div className="border-b border-line px-4 py-4 sm:px-6">
               <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 space-y-1">
-                  {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+                <div className="min-w-0 flex-1 space-y-1">
+                  {eyebrow && <div className="eyebrow truncate">{eyebrow}</div>}
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 id={titleId} className="text-lg font-semibold tracking-tight text-ink">
+                    <h2 id={titleId} className="break-words text-lg font-semibold tracking-tight text-ink">
                       {title}
                     </h2>
                     {headerBadge}
                   </div>
-                  {subtitle && <div className="text-sm text-ink-muted">{subtitle}</div>}
+                  {subtitle && <div className="break-words text-sm text-ink-muted">{subtitle}</div>}
                 </div>
 
                 <button
@@ -132,7 +132,7 @@ export const SlideOverDrawer: React.FC<SlideOverDrawerProps> = ({
                 <div
                   role="tablist"
                   aria-label="Seções do registro"
-                  className="-mb-4 mt-4 flex gap-5 overflow-x-auto border-t border-line pt-2"
+                  className="no-scrollbar -mb-4 mt-4 flex w-full max-w-full gap-5 overflow-x-auto border-t border-line pt-2"
                 >
                   {tabs.map((tab) => {
                     const isActive = tab.id === activeTabId;

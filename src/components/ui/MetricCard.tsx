@@ -108,18 +108,18 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         delay: Math.min(slotIndex, 4) * 0.03,
       }}
       className={cn(
-        'flex h-full flex-col justify-between rounded-lg border border-line bg-surface p-5',
+        'flex h-full min-w-0 max-w-full flex-col justify-between overflow-hidden rounded-lg border border-line bg-surface p-4 sm:p-5',
         className
       )}
     >
       <p className="truncate text-xs font-medium text-ink-muted">{title}</p>
 
-      <div className="my-2 flex items-baseline gap-1.5">
-        <span className="font-mono text-3xl font-semibold tracking-tight text-ink tabular-nums">
+      <div className="my-2 flex min-w-0 flex-wrap items-baseline gap-1.5">
+        <span className="font-mono text-2xl sm:text-3xl font-semibold tracking-tight text-ink tabular-nums break-words">
           {numericPart}
         </span>
         {unitPart && (
-          <span className="font-sans text-sm font-normal text-ink-muted">
+          <span className="font-sans text-xs sm:text-sm font-normal text-ink-muted">
             {unitPart}
           </span>
         )}

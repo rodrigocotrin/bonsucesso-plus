@@ -1,0 +1,247 @@
+import React from 'react';
+import {
+  BookOpen,
+  Calendar,
+  CalendarCheck,
+  ClipboardCheck,
+  Coffee,
+  GraduationCap,
+  HeartHandshake,
+  Home,
+  Layers,
+  UserCircle,
+  Users,
+} from 'lucide-react';
+import { UserRole } from '../types';
+
+export interface NavMenuItem {
+  id: string;
+  label: string;
+  shortMobileLabel: string;
+  path: string;
+  description: string;
+  icon: React.ReactNode;
+  showInMobileBottomBar?: boolean;
+}
+
+export const ROLE_NAVIGATION_MENUS: Record<UserRole, NavMenuItem[]> = {
+  student: [
+    {
+      id: 'std-home',
+      label: 'Início',
+      shortMobileLabel: 'Início',
+      path: '/aluno',
+      description: 'Resumo das suas aulas de hoje, frequência, prazos e avisos importantes.',
+      icon: <Home className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'std-classes',
+      label: 'Minhas Aulas',
+      shortMobileLabel: 'Aulas',
+      path: '/aluno/aulas',
+      description: 'Grade semanal da sua turma, histórico de aulas e conteúdos programáticos.',
+      icon: <CalendarCheck className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'std-materials',
+      label: 'Meus Materiais',
+      shortMobileLabel: 'Materiais',
+      path: '/aluno/materias',
+      description: 'Integração com o Google Sala de Aula, apostilas, listas e vídeos de revisão.',
+      icon: <BookOpen className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'std-events',
+      label: 'Eventos e Avisos',
+      shortMobileLabel: 'Avisos',
+      path: '/aluno/eventos',
+      description: 'Comunicados da coordenação, datas de simulados, aulões e visitas pedagógicas.',
+      icon: <Calendar className="h-5 w-5" />,
+    },
+    {
+      id: 'std-performance',
+      label: 'Meu Desempenho',
+      shortMobileLabel: 'Desempenho',
+      path: '/aluno/desempenho',
+      description: 'Sua evolução nos simulados do ENEM (0 a 1000), notas por área e frequência mês a mês.',
+      icon: <GraduationCap className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'std-profile',
+      label: 'Meus Dados e Preferências',
+      shortMobileLabel: 'Perfil',
+      path: '/aluno/perfil',
+      description: 'Seus dados cadastrais, tamanho da letra e modo de exibição.',
+      icon: <UserCircle className="h-5 w-5" />,
+    },
+  ],
+
+  guardian: [
+    {
+      id: 'grd-home',
+      label: 'Resumo do(a) Estudante',
+      shortMobileLabel: 'Início',
+      path: '/responsavel',
+      description: 'Visão acolhedora e direta da presença e participação do seu filho ou filha.',
+      icon: <Home className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'grd-attendance',
+      label: 'Presença nas Aulas',
+      shortMobileLabel: 'Presença',
+      path: '/responsavel/frequencia',
+      description: 'Histórico claro de presenças e faltas por dia e disciplina.',
+      icon: <CalendarCheck className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'grd-grades',
+      label: 'Evolução nos Simulados',
+      shortMobileLabel: 'Simulados',
+      path: '/responsavel/simulados',
+      description: 'Acompanhe o progresso nos simulados preparatórios para o ENEM.',
+      icon: <GraduationCap className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'grd-calendar',
+      label: 'Avisos e Encontros de Pais',
+      shortMobileLabel: 'Avisos',
+      path: '/responsavel/calendario',
+      description: 'Datas de rodas de conversa com a coordenação e simulados de sábado.',
+      icon: <Calendar className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'grd-profile',
+      label: 'Meus Dados e Tamanho da Letra',
+      shortMobileLabel: 'Perfil',
+      path: '/responsavel/perfil',
+      description: 'Ajuste o tamanho da letra e confira seus telefones de contato.',
+      icon: <UserCircle className="h-5 w-5" />,
+    },
+  ],
+
+  teacher: [
+    {
+      id: 'tch-home',
+      label: 'Painel do Professor',
+      shortMobileLabel: 'Início',
+      path: '/professor',
+      description: 'Resumo das suas turmas, próximas aulas agendadas e pendências.',
+      icon: <Home className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'tch-classes',
+      label: 'Minhas Turmas e Classroom',
+      shortMobileLabel: 'Turmas',
+      path: '/professor/turmas',
+      description: 'Lista de alunos por turma e link para o Google Sala de Aula.',
+      icon: <BookOpen className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'tch-attendance',
+      label: 'Diário de Classe e Chamada',
+      shortMobileLabel: 'Chamada',
+      path: '/professor/chamada',
+      description: 'Registro rápido de presença, faltas e conteúdos ministrados na aula.',
+      icon: <ClipboardCheck className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'tch-grades',
+      label: 'Lançar Notas e Simulados',
+      shortMobileLabel: 'Notas',
+      path: '/professor/avaliacoes',
+      description: 'Registro de notas na escala ENEM (0-1000) e devolutivas pedagógicas.',
+      icon: <GraduationCap className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'tch-calendar',
+      label: 'Calendário Pedagógico',
+      shortMobileLabel: 'Agenda',
+      path: '/professor/calendario',
+      description: 'Cronograma do semestre, aulões integrados e reuniões docentes.',
+      icon: <Calendar className="h-5 w-5" />,
+    },
+    {
+      id: 'tch-profile',
+      label: 'Meus Dados e Preferências',
+      shortMobileLabel: 'Perfil',
+      path: '/professor/perfil',
+      description: 'Seus dados de voluntariado e ajustes de acessibilidade.',
+      icon: <UserCircle className="h-5 w-5" />,
+    },
+  ],
+
+  coordinator: [
+    {
+      id: 'crd-home',
+      label: 'Visão Geral da Coordenação',
+      shortMobileLabel: 'Início',
+      path: '/coordenacao',
+      description: 'Indicadores gerais do cursinho, alertas de evasão (<75%) e avisos.',
+      icon: <Home className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'crd-people',
+      label: 'Pessoas e Matrículas',
+      shortMobileLabel: 'Pessoas',
+      path: '/coordenacao/pessoas',
+      description: 'Cadastro unificado (Person) de alunos, responsáveis e professores + histórico de matrícula.',
+      icon: <Users className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'crd-classes',
+      label: 'Turmas, Grade e Períodos',
+      shortMobileLabel: 'Turmas',
+      path: '/coordenacao/turmas',
+      description: 'Gestão do 2º semestre de 2026, alocação de disciplinas e links do Classroom.',
+      icon: <Layers className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'crd-pedagogical',
+      label: 'Frequência e Simulados ENEM',
+      shortMobileLabel: 'Pedagógico',
+      path: '/coordenacao/pedagogico',
+      description: 'Acompanhamento de estudantes com frequência crítica e resultados dos simulados.',
+      icon: <GraduationCap className="h-5 w-5" />,
+      showInMobileBottomBar: true,
+    },
+    {
+      id: 'crd-pantry',
+      label: 'Copa, Merenda e Doações',
+      shortMobileLabel: 'Copa/Doações',
+      path: '/coordenacao/copa-doacoes',
+      description: 'Controle interno de estoque de lanches para os alunos e registro de doações recebidas.',
+      icon: <Coffee className="h-5 w-5" />,
+    },
+    {
+      id: 'crd-calendar',
+      label: 'Calendário Comunitário',
+      shortMobileLabel: 'Calendário',
+      path: '/coordenacao/calendario',
+      description: 'Organização de simulados, rodas de conversa com famílias e eventos.',
+      icon: <Calendar className="h-5 w-5" />,
+    },
+    {
+      id: 'crd-profile',
+      label: 'Meus Dados e Preferências',
+      shortMobileLabel: 'Perfil',
+      path: '/coordenacao/perfil',
+      description: 'Seus dados cadastrais e opções de acessibilidade.',
+      icon: <HeartHandshake className="h-5 w-5" />,
+    },
+  ],
+};

@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * Controle Global de Acessibilidade — Tamanho da Fonte (WCAG 2.1 AA)
+   * Como o Tailwind utiliza unidades `rem` para tipografia e espaçamentos proporcionais,
+   * alterar o font-size do elemento <html> escala harmoniosamente toda a interface:
+   * - normal: 16px (100%) -> mínimo de 16px no corpo de texto
+   * - large: 18px (112.5%) -> leitura confortável para adultos e baixa visão leve
+   * - xlarge: 20px (125%) -> alta legibilidade para idosos e pais/responsáveis
+   */
+  html[data-font-scale="normal"],
+  html:not([data-font-scale]) {
+    font-size: 16px;
+  }
+
+  html[data-font-scale="large"] {
+    font-size: 18px;
+  }
+
+  html[data-font-scale="xlarge"] {
+    font-size: 20px;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 leading-relaxed transition-colors duration-200;
+    font-size: 1rem; /* Garante no mínimo 16px no modo normal */
+  }
+
+  /* Anéis de foco sempre visíveis e de alto contraste para navegação por teclado */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-600 ring-offset-2 ring-offset-white dark:ring-primary-400 dark:ring-offset-slate-950;
+  }
+}
